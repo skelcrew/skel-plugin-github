@@ -553,11 +553,39 @@ test("a question the plugin doesn't answer, or a repository that isn't one, fail
   );
 });
 
-test("without setup, a call says to run it", async () => {
-  removeSettings(dir);
-  dir = signedIn();
+// Exit code 2 tells Skelcrew the plugin needs its setup again, so its error names the command.
+const again = "run sc plugin setup github to sign in again";
+const took = JSON.stringify({ ask: "took", repository: "simon/app", task: "1" });
+
+test("without setup, a call exits 2 and says to run it", async () => {
   removeSettings(join(dir, "settings.json"));
-  await expect(ask({ ask: "took", repository: "simon/app", task: "1" })).rejects.toThrow(
-    "GitHub isn't set up",
-  );
+  const { code, err } = await run(fake.url, dir, ["call.ts"], took);
+  expect(code).toBe(2);
+  expect(err.trim()).toBe(`GitHub isn't set up: ${again}`);
+});
+
+test("a sign-in whose refresh token ran out exits 2, asking nothing", async () => {
+  removeSettings(dir);
+  dir = signedIn({ accessExpires: Date.now() - 1000, refreshExpires: Date.now() - 1000 });
+  const { code, err } = await run(fake.url, dir, ["call.ts"], took);
+  expect(code).toBe(2);
+  expect(err.trim()).toBe(`your GitHub sign-in ran out: ${again}`);
+  expect(fake.asked).toEqual([]);
+});
+
+test("a renewal the service refuses as unauthorized exits 2, and other failures exit 1", async () => {
+  removeSettings(dir);
+  dir = signedIn({ accessExpires: Date.now() - 1000 });
+  fake.route = (asked) =>
+    asked.path === "/service/github/renew" ? json({ error: "sign in again" }, 401) : world(asked);
+  const refused = await run(fake.url, dir, ["call.ts"], took);
+  expect(refused.code).toBe(2);
+  expect(refused.err.trim()).toBe(`couldn't renew your GitHub sign-in: sign in again: ${again}`);
+  fake.route = (asked) =>
+    asked.path === "/service/github/renew" ? json({ error: "down" }, 503) : world(asked);
+  const down = await run(fake.url, dir, ["call.ts"], took);
+  expect(down.code).toBe(1);
+  expect(down.err.trim()).toBe("couldn't renew your GitHub sign-in: down");
+  const dance = await run(fake.url, dir, ["call.ts"], JSON.stringify({ ask: "dance" }));
+  expect(dance.code).toBe(1);
 });

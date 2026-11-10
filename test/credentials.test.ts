@@ -52,6 +52,16 @@ test("a repository the app can't reach fails with the service's words", async ()
   expect(err).toContain("skel's GitHub App isn't installed");
 });
 
+test("a lapsed sign-in exits 2, naming the command that signs in again", async () => {
+  removeSettings(dir);
+  dir = signedIn({ accessExpires: Date.now() - 1000, refreshExpires: Date.now() - 1000 });
+  const { code, err } = await helper("get", "protocol=https\nhost=github.com\npath=simon/app\n");
+  expect(code).toBe(2);
+  expect(err.trim()).toBe(
+    "your GitHub sign-in ran out: run sc plugin setup github to sign in again",
+  );
+});
+
 test("storing or erasing a login does nothing", async () => {
   for (const action of ["store", "erase"]) {
     const { code, out } = await helper(action, "protocol=https\nhost=github.com\npassword=x\n");

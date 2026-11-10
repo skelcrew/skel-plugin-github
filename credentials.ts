@@ -1,7 +1,7 @@
 // The plugin's git credential helper: skel hands it to git for each clone, fetch and push,
 // and it gives git the repository's token from skel's app, as the user x-access-token. skel
 // asks git to send the repository's path, so each token works for that repository alone.
-import { repositoryToken } from "./github.ts";
+import { repositoryToken, SignInNeeded } from "./github.ts";
 
 // git asks with "get", and tells helpers of a login it stored or one that failed with "store"
 // and "erase". The token is the service's to renew, so those need nothing.
@@ -24,7 +24,7 @@ if (process.argv[2] === "get") {
       process.stdout.write(`username=x-access-token\npassword=${token}\n`);
     } catch (error) {
       console.error(error instanceof Error ? error.message : String(error));
-      process.exit(1);
+      process.exit(error instanceof SignInNeeded ? 2 : 1);
     }
   }
 }

@@ -47,8 +47,11 @@ for a few minutes. Agents never see them.
 ## Calls
 
 Skelcrew runs `bun call.ts` with one JSON question on stdin, and reads one JSON answer from
-stdout. A failure exits non-zero, with its reason as the last line of stderr. Each question
-names its kind in `ask`. A repository is named `owner/name`, its key from `claims`.
+stdout. A failure exits non-zero, with its reason as the last line of stderr. It exits 2
+when only signing in again fixes it: there is no sign-in yet, its refresh token ran out, or
+the service refused to renew it. Skelcrew then names `sc plugin setup github`, which signs
+you in again. Every other failure exits 1. The git credential helper exits the same way.
+Each question names its kind in `ask`. A repository is named `owner/name`, its key from `claims`.
 
 | `ask` | Also given | Answer |
 | --- | --- | --- |

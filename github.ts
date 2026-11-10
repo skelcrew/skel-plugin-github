@@ -69,10 +69,18 @@ export type Settings = {
   refreshExpires: number;
 };
 
+// What you run to sign in again, which every SignInNeeded names.
+const signInAgain = "run sc plugin setup github to sign in again";
+
+// A failure only you can fix, by signing in again through the plugin's setup. call.ts and
+// credentials.ts exit with code 2 for it, which Skelcrew reads as "this plugin needs its setup
+// again", so the error you see names the command.
+export class SignInNeeded extends Error {}
+
 // Returns your saved sign-in, or throws saying how to sign in when there is none.
 export function settings(): Settings {
   const saved = readJson("settings.json");
-  if (saved === null) throw new Error("GitHub isn't set up: run the plugin's setup first");
+  if (saved === null) throw new SignInNeeded(`GitHub isn't set up: ${signInAgain}`);
   const s = record(saved, "the plugin's settings.json");
   return {
     service: text(s.service, "the service's address"),
@@ -134,12 +142,18 @@ async function userToken(stale = false): Promise<Settings> {
     const now = settings();
     if (now.access !== before.access && now.accessExpires - Date.now() > margin) return now;
     if (now.refreshExpires < Date.now())
-      throw new Error("your GitHub sign-in ran out: run the plugin's setup again to sign in");
+      throw new SignInNeeded(`your GitHub sign-in ran out: ${signInAgain}`);
     const response = await fetch(`${now.service}/github/renew`, {
       method: "POST",
       headers: { ...headers, "content-type": "application/json" },
       body: JSON.stringify({ refresh_token: now.refresh }),
     });
+    // A 401 is the service saying the refresh token is no good, so only a new sign-in helps.
+    // Any other failure, such as the service being down, may pass on its own.
+    if (response.status === 401)
+      throw new SignInNeeded(
+        `couldn't renew your GitHub sign-in: ${await said(response)}: ${signInAgain}`,
+      );
     if (!response.ok)
       throw new Error(`couldn't renew your GitHub sign-in: ${await said(response)}`);
     const renewed = signInFrom(await response.json(), now.service, now.login);

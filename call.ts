@@ -1,6 +1,7 @@
 // The plugin's call command: skel asks one question as JSON on stdin, and the plugin answers it
 // as JSON on stdout, acting on GitHub as skel's GitHub App. A failure exits non-zero with its
-// reason as the last line of stderr, which skel shows.
+// reason as the last line of stderr, which skel shows: code 2 when only signing in again
+// fixes it, and 1 for anything else.
 import { changed, type Item } from "./changed.ts";
 import {
   askService,
@@ -10,6 +11,7 @@ import {
   record,
   repositoryToken,
   rest,
+  SignInNeeded,
   settings,
   text,
 } from "./github.ts";
@@ -253,5 +255,5 @@ try {
   console.log(JSON.stringify(await answer(question)));
 } catch (error) {
   console.error(error instanceof Error ? error.message : String(error));
-  process.exit(1);
+  process.exit(error instanceof SignInNeeded ? 2 : 1);
 }
