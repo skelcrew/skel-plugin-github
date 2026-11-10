@@ -113,16 +113,22 @@ async function installations(slug: string): Promise<Installation[]> {
     }));
 }
 
-// Reports whether the installation covers the repository, given as owner/name.
+// Reports whether the installation covers the repository, given as owner/name. GitHub lists an
+// install's repositories a hundred at a time, so it reads page after page until it finds the
+// repository or a page comes back short.
 async function covers(installation: Installation, repository: string): Promise<boolean> {
   if (installation.all) return true;
-  const found = await asYou(`/user/installations/${installation.id}/repositories?per_page=100`);
-  if (found.status !== 200) return false;
-  return list(record(found.body, "an install's repositories").repositories, "repositories").some(
-    (each) =>
-      text(record(each, "a repository").full_name, "a name").toLowerCase() ===
-      repository.toLowerCase(),
-  );
+  for (let page = 1; ; page++) {
+    const path = `/user/installations/${installation.id}/repositories?per_page=100&page=${page}`;
+    const found = await asYou(path);
+    if (found.status !== 200) return false;
+    const names = list(
+      record(found.body, "an install's repositories").repositories,
+      "repositories",
+    ).map((each) => text(record(each, "a repository").full_name, "a name").toLowerCase());
+    if (names.includes(repository.toLowerCase())) return true;
+    if (names.length < 100) return false;
+  }
 }
 
 // Returns the page that installs the app with your account and the repository picked already.

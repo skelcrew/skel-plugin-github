@@ -62,11 +62,17 @@ beforeEach(() => {
       return json({ total_count: now?.length ?? 0, installations: now ?? [] });
     }
     const listed = asked.path.match(/^\/api\/user\/installations\/(\d+)\/repositories\?/);
+    // As GitHub does, a page at a time, 30 unless asked for up to 100.
     if (listed?.[1] && asked.auth === "Bearer user-token") {
       const names = covers[listed[1]] ?? [];
+      const query = new URLSearchParams(asked.path.split("?")[1]);
+      const size = Math.min(Number(query.get("per_page") ?? 30), 100);
+      const page = Number(query.get("page") ?? 1);
       return json({
         total_count: names.length,
-        repositories: names.map((full_name) => ({ full_name })),
+        repositories: names
+          .slice((page - 1) * size, page * size)
+          .map((full_name) => ({ full_name })),
       });
     }
     return undefined;
@@ -122,6 +128,15 @@ test("when the app is on the repository already, there is nothing to install", a
   expect(code).toBe(0);
   expect(out).not.toContain("needs to be installed");
   expect(out).toEndWith("Signed in to GitHub as simon.\n");
+});
+
+test("an install that covers the repository on a later page needs nothing more", async () => {
+  installed = [[onSimon()]];
+  const many = Array.from({ length: 150 }, (_, at) => `simon/repo-${at}`);
+  covers = { "9": [...many, "simon/app"] };
+  const { code, out } = await run(fake.url, dir, ["setup.ts"], "", { SKELCREW_REMOTE: app });
+  expect(code).toBe(0);
+  expect(out).not.toContain("needs to be installed");
 });
 
 test("an app installed on all your repositories covers this one too", async () => {
