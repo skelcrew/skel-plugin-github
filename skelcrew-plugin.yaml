@@ -1,6 +1,6 @@
 name: github
 version: 0.1.0
-skel: 0.1.0
+skelcrew: 0.1.0
 about: Tasks from GitHub issues, and PRs on GitHub, as Skelcrew's GitHub App
 jobs: [tracker, forge]
 setup: [bun, setup.ts]
