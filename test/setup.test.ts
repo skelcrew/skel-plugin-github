@@ -1,26 +1,38 @@
 // Tests of the plugin's setup, as you go through it in your terminal, against a fake GitHub
 // and a fake skel's service.
 import { afterAll, afterEach, beforeEach, expect, test } from "bun:test";
-import { mkdtempSync, readFileSync, statSync } from "node:fs";
+import { chmodSync, mkdirSync, mkdtempSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { json, removeSettings, run, startFake } from "./fake.ts";
+import { type Asked, json, removeSettings, run, startFake } from "./fake.ts";
 
 const fake = startFake();
 afterAll(() => fake.stop());
 let dir = "";
 let polls = 0;
+// What GET /user/installations answers, one list per time it is asked; the last one stays.
+let installed: object[][] = [];
+// The repositories each installation covers, by its ID.
+let covers: Record<string, string[]> = {};
+
+const install = "https://github.com/apps/skelcrew/installations/new";
+const onSimon = (selection = "selected") => ({
+  id: 9,
+  app_slug: "skelcrew",
+  account: { login: "simon", id: 1234 },
+  repository_selection: selection,
+  html_url: "https://github.com/settings/installations/9",
+});
+const app = "git@github.com:simon/app.git";
 
 beforeEach(() => {
   dir = mkdtempSync(join(tmpdir(), "skel-plugin-github-"));
   fake.asked = [];
   polls = 0;
+  installed = [[], [onSimon()]];
+  covers = { "9": ["simon/app"] };
   fake.route = (asked) => {
-    if (asked.path === "/service/github")
-      return json({
-        install: "https://github.com/apps/skelcrew/installations/new",
-        client_id: "Iv1.app",
-      });
+    if (asked.path === "/service/github") return json({ install, client_id: "Iv1.app" });
     if (asked.path === "/web/login/device/code")
       return json({
         device_code: "device-1",
@@ -42,22 +54,44 @@ beforeEach(() => {
     }
     if (asked.path === "/api/user" && asked.auth === "Bearer user-token")
       return json({ login: "simon" });
+    // Anyone may read a public repository, with no sign-in.
+    if (asked.path === "/api/repos/simon/app" && asked.auth === null)
+      return json({ id: 5678, private: false, owner: { login: "simon", id: 1234 } });
+    if (asked.path.startsWith("/api/user/installations?") && asked.auth === "Bearer user-token") {
+      const now = installed.length > 1 ? installed.shift() : installed[0];
+      return json({ total_count: now?.length ?? 0, installations: now ?? [] });
+    }
+    const listed = asked.path.match(/^\/api\/user\/installations\/(\d+)\/repositories\?/);
+    if (listed?.[1] && asked.auth === "Bearer user-token") {
+      const names = covers[listed[1]] ?? [];
+      return json({
+        total_count: names.length,
+        repositories: names.map((full_name) => ({ full_name })),
+      });
+    }
     return undefined;
   };
 });
 afterEach(() => removeSettings(dir));
 
-test("setup shows the install page, signs you in with a code, and saves the sign-in", async () => {
-  // Enter takes skelcrew.dev as the service, then says the app is installed.
-  const { code, out } = await run(fake.url, dir, ["setup.ts"], "\n\n");
+const asked = (path: string): Asked[] => fake.asked.filter((a) => a.path.startsWith(path));
+
+test("setup signs you in, has you install the app on the checkout's repository with it picked, and sees the install", async () => {
+  const { code, out, err } = await run(fake.url, dir, ["setup.ts"], "", { SKELCREW_REMOTE: app });
+  expect(err).toBe("");
   expect(code).toBe(0);
-  expect(out).toContain("https://github.com/apps/skelcrew/installations/new");
-  expect(out).toContain("open https://github.com/login/device and enter ABCD-1234");
-  expect(out).toContain("Signed in to GitHub as simon.");
-  const asked = new URLSearchParams(
-    fake.asked.find((a) => a.path === "/web/login/device/code")?.body,
+  expect(out).toBe(
+    [
+      "Sign in to GitHub: open https://github.com/login/device and enter ABCD-1234.",
+      "Signed in to GitHub as simon.",
+      "Skelcrew's GitHub App needs to be installed on simon/app. Open this link:",
+      `${install}/permissions?suggested_target_id=1234&repository_ids[]=5678`,
+      "Skelcrew's GitHub App is on simon/app.",
+      "",
+    ].join("\n"),
   );
-  expect(asked.get("client_id")).toBe("Iv1.app");
+  const device = new URLSearchParams(asked("/web/login/device/code")[0]?.body);
+  expect(device.get("client_id")).toBe("Iv1.app");
   const file = join(dir, "settings.json");
   const saved = JSON.parse(readFileSync(file, "utf8"));
   expect(saved).toMatchObject({
@@ -70,9 +104,104 @@ test("setup shows the install page, signs you in with a code, and saves the sign
   expect(statSync(file).mode & 0o777).toBe(0o600);
 });
 
-test("setup takes another service's address, for one you run yourself", async () => {
-  const { code } = await run(fake.url, dir, ["setup.ts"], `${fake.url}/service/\n\n`);
+// GitHub picks a repository on the install page only by its ID, which no one outside can read
+// for a private repository, and leaving it out would pick every repository.
+test("for a private repository, the install page opens with nothing picked", async () => {
+  const before = fake.route;
+  fake.route = (a) => (a.path === "/api/repos/simon/app" ? undefined : before(a));
+  const { code, out } = await run(fake.url, dir, ["setup.ts"], "", { SKELCREW_REMOTE: app });
   expect(code).toBe(0);
+  expect(out).toContain(`Open this link:\n${install}\n`);
+  expect(out).not.toContain("repository_ids");
+  expect(out).toContain("Skelcrew's GitHub App is on simon/app.");
+});
+
+test("when the app is on the repository already, there is nothing to install", async () => {
+  installed = [[onSimon()]];
+  const { code, out } = await run(fake.url, dir, ["setup.ts"], "", { SKELCREW_REMOTE: app });
+  expect(code).toBe(0);
+  expect(out).not.toContain("needs to be installed");
+  expect(out).toEndWith("Signed in to GitHub as simon.\n");
+});
+
+test("an app installed on all your repositories covers this one too", async () => {
+  installed = [[onSimon("all")]];
+  covers = {};
+  const { code, out } = await run(fake.url, dir, ["setup.ts"], "", { SKELCREW_REMOTE: app });
+  expect(code).toBe(0);
+  expect(out).not.toContain("needs to be installed");
+});
+
+// GitHub doesn't say what its new-install page does for an account that has the app already,
+// so setup opens that install's own page, where the repository is added.
+test("when the app is on your account but not this repository, the link is that install's page", async () => {
+  installed = [[onSimon()]];
+  covers = { "9": ["simon/site"] };
+  const before = fake.route;
+  let lists = 0;
+  // You add the repository once the page has been shown, after the first look.
+  fake.route = (a) => {
+    if (a.path.startsWith("/api/user/installations/9/repositories?") && ++lists === 2)
+      covers = { "9": ["simon/site", "simon/app"] };
+    return before(a);
+  };
+  const { code, out } = await run(fake.url, dir, ["setup.ts"], "", { SKELCREW_REMOTE: app });
+  expect(code).toBe(0);
+  expect(out).toContain("Open this link:\nhttps://github.com/settings/installations/9\n");
+  expect(out).toContain("Skelcrew's GitHub App is on simon/app.");
+});
+
+test("outside a checkout on GitHub, setup waits for the app on any repository", async () => {
+  for (const remote of [undefined, "git@gitlab.com:simon/app.git"]) {
+    installed = [[], [onSimon()]];
+    const { code, out } = await run(
+      fake.url,
+      dir,
+      ["setup.ts"],
+      "",
+      remote ? { SKELCREW_REMOTE: remote } : {},
+    );
+    expect(code).toBe(0);
+    expect(out).toContain(
+      `Skelcrew's GitHub App needs to be installed on your repositories. Open this link:\n${install}\n`,
+    );
+    expect(out).toContain("Skelcrew's GitHub App is installed.");
+  }
+  expect(asked("/api/repos/")).toEqual([]);
+});
+
+test("on a desktop, Enter opens each page in your browser, and the links aren't printed", async () => {
+  const bin = join(dir, "bin");
+  mkdirSync(bin);
+  for (const name of ["open", "xdg-open"]) {
+    writeFileSync(join(bin, name), `#!/bin/sh\necho "$1" >> "${join(dir, "opened")}"\n`);
+    chmodSync(join(bin, name), 0o755);
+  }
+  const { code, out } = await run(fake.url, dir, ["setup.ts"], "\n\n", {
+    SKELCREW_REMOTE: app,
+    SSH_CONNECTION: "",
+    SSH_TTY: "",
+    DISPLAY: ":0",
+    PATH: `${bin}:${process.env.PATH ?? ""}`,
+  });
+  expect(code).toBe(0);
+  expect(out).toContain(
+    "Sign in to GitHub with the code ABCD-1234. Press Enter to open your browser.",
+  );
+  expect(out).toContain(
+    "Skelcrew's GitHub App needs to be installed on simon/app. Press Enter to open your browser.",
+  );
+  expect(out).not.toContain("https://");
+  expect(readFileSync(join(dir, "opened"), "utf8")).toBe(
+    `https://github.com/login/device\n${install}/permissions?suggested_target_id=1234&repository_ids[]=5678\n`,
+  );
+});
+
+test("setup never asks for the service, and uses the one named in the settings folder", async () => {
+  writeFileSync(join(dir, "service"), `${fake.url}/service/\n`);
+  const { code, out } = await run(fake.url, dir, ["setup.ts"], "", { SKELCREW_REMOTE: app });
+  expect(code).toBe(0);
+  expect(out).not.toContain("service");
   expect(JSON.parse(readFileSync(join(dir, "settings.json"), "utf8")).service).toBe(
     `${fake.url}/service`,
   );
@@ -80,12 +209,10 @@ test("setup takes another service's address, for one you run yourself", async ()
 
 test("setup fails plainly when you don't authorize skel", async () => {
   fake.route = (
-    (before) => (asked: Parameters<typeof before>[0]) =>
-      asked.path === "/web/login/oauth/access_token"
-        ? json({ error: "access_denied" })
-        : before(asked)
+    (before) => (a: Asked) =>
+      a.path === "/web/login/oauth/access_token" ? json({ error: "access_denied" }) : before(a)
   )(fake.route);
-  const { code, err } = await run(fake.url, dir, ["setup.ts"], "\n\n");
+  const { code, err } = await run(fake.url, dir, ["setup.ts"], "");
   expect(code).toBe(1);
   expect(err).toContain("you didn't authorize Skelcrew on GitHub");
 });

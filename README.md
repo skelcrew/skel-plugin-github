@@ -1,6 +1,6 @@
 # skel-plugin-github
 
-Skelcrew's GitHub plugin: tasks from GitHub issues, and PRs on GitHub. It is a tracker and a
+Skelcrew's GitHub plugin: work with issues, pull requests and CI on your repositories. It is a tracker and a
 forge for [Skelcrew](https://github.com/skelcrew/skelcrew). Everything it does on GitHub, it does
 as Skelcrew's GitHub App, so every PR, review, comment, reaction and push shows as
 `skelcrew[bot]`. Skelcrew never acts on GitHub as you.
@@ -11,28 +11,33 @@ as Skelcrew's GitHub App, so every PR, review, comment, reaction and push shows 
 sc plugin install skelcrew/skel-plugin-github
 ```
 
-The first `sc` offers to run this for you. On a server or Sprite, install it there:
+`sc` in a checkout of a GitHub repository offers to install it for you. On a server or Sprite, install it there:
 `sc --remote sprite:demo plugin install skelcrew/skel-plugin-github`.
 
 It needs nothing else installed: it is written for Bun, which Skelcrew brings, and has no
 dependencies. It reaches GitHub through its REST and GraphQL APIs.
 
-Its setup takes three steps, and asks you to paste nothing:
+Its setup takes two steps, and asks you to paste nothing:
 
-1. It asks for Skelcrew's service, with `https://skelcrew.dev` filled in. Press Enter, or give
-   the address of a service you run yourself.
-2. It opens the page that installs Skelcrew's GitHub App, or prints it when there is no browser
-   at hand, such as over SSH. Pick the repositories Skelcrew should work on, and click Install.
-3. It signs you in with GitHub's device flow: a code and a link, then Authorize. That tells
-   Skelcrew who you are, so it can say whether you can push to a repository, and whether a
-   comment is yours.
+1. It signs you in with GitHub's device flow: it shows a code, and Enter opens GitHub's page,
+   where you enter it and click Authorize. That tells Skelcrew who you are, so it can say whether
+   you can push to a repository, and whether a comment is yours.
+2. It makes sure Skelcrew's GitHub App is installed on the repository you ran `sc` in. If not,
+   Enter opens the install page. For a public repository, your account and the repository are
+   picked already. For a private one you pick it, as GitHub picks a repository only by an ID
+   that can't be read before the app is there. Where the app is on your account already, the
+   page is that install's own, where you add the repository. Click Install, and setup sees it
+   by itself. Outside a checkout, setup waits until the app is installed anywhere.
+
+Over SSH, where there is no browser at hand, it prints each link instead of opening it.
 
 Then, in a checkout, `sc init` names GitHub as the repository's tracker.
 
 ## What it needs
 
 - **Skelcrew's service**, [skel-service](https://github.com/skelcrew/skel-service), at
-  `https://skelcrew.dev` unless you run your own. The app's secrets live there. The plugin asks
+  `https://skelcrew.dev`. To use one you run yourself, write its address in a file named
+  `service` in the plugin's settings folder, then run `sc plugin setup github`. The app's secrets live there. The plugin asks
   it for a token for each repository, which works only there, for an hour, and for your sign-in
   to be renewed when GitHub expires it. Code and issues never pass through the service: the
   plugin and git talk to GitHub directly.

@@ -1,7 +1,7 @@
 name: github
-version: 0.1.0
+version: 0.2.0
 skelcrew: 0.1.0
-about: Tasks from GitHub issues, and PRs on GitHub, as Skelcrew's GitHub App
+about: Work with issues, pull requests and CI on your repositories
 jobs: [tracker, forge]
 setup: [bun, setup.ts]
 call: [bun, call.ts]

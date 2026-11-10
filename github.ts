@@ -277,3 +277,14 @@ export async function graphql(repository: string, doing: string, query: string):
     );
   return got.data;
 }
+
+// Returns the owner and name of a GitHub repository from a git remote, in any form git writes
+// one for github.com, or from its full name, as you name it to skel repo add, or null for a
+// remote somewhere else.
+export function githubRemote(remote: string): { owner: string; name: string } | null {
+  const found = remote.match(
+    /^(?:(?:https?|ssh|git):\/\/(?:[^@/]+@)?github\.com(?::\d+)?\/|[^@/:]+@github\.com:|)([\w.-]+)\/([\w.-]+?)(?:\.git)?\/?$/,
+  );
+  if (!found?.[1] || !found[2]) return null;
+  return { owner: found[1], name: found[2] };
+}
