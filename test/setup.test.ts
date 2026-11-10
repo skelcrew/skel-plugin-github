@@ -16,7 +16,7 @@ beforeEach(() => {
   fake.asked = [];
   polls = 0;
   fake.route = (asked) => {
-    if (asked.path === "/service/")
+    if (asked.path === "/service/github")
       return json({
         install: "https://github.com/apps/skelcrew/installations/new",
         client_id: "Iv1.app",

@@ -11,7 +11,7 @@ beforeEach(() => {
   dir = signedIn();
   fake.asked = [];
   fake.route = (asked) =>
-    asked.path === "/service/token" && JSON.parse(asked.body).repository === "simon/app"
+    asked.path === "/service/github/token" && JSON.parse(asked.body).repository === "simon/app"
       ? json({ token: "ghs_app", expires: new Date(Date.now() + 3600_000).toISOString() })
       : undefined;
 });
@@ -43,7 +43,7 @@ test("git gets nothing for another host, or without the repository's path", asyn
 
 test("a repository the app can't reach fails with the service's words", async () => {
   fake.route = (asked) =>
-    asked.path === "/service/token"
+    asked.path === "/service/github/token"
       ? json({ error: "skel's GitHub App isn't installed" }, 404)
       : undefined;
   const { code, out, err } = await helper("get", "protocol=https\nhost=github.com\npath=simon/x\n");

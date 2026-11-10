@@ -65,7 +65,7 @@ try {
   const service = (
     prompt("Skelcrew's service:", "https://skelcrew.dev") ?? "https://skelcrew.dev"
   ).replace(/\/+$/, "");
-  const found = await fetch(`${service}/`, { headers });
+  const found = await fetch(`${service}/github`, { headers });
   if (!found.ok) throw new Error(`${service} isn't Skelcrew's service: HTTP ${found.status}`);
   const app = record(await found.json(), `${service}'s answer`);
   const install = text(app.install, "the app's install page");

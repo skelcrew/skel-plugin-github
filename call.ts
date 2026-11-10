@@ -222,7 +222,7 @@ async function answer(question: Record<string, unknown>): Promise<unknown> {
   }
   if (ask === "log") return log(repository, String(numberOf(question.check, "a check's ID")));
   if (ask === "wake" || ask === "unwake") {
-    await askService(`/${ask}`, { repository, url: text(question.url, "the address") });
+    await askService(`/github/${ask}`, { repository, url: text(question.url, "the address") });
     return null;
   }
   throw new Error(`the GitHub plugin doesn't answer ${ask}`);

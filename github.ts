@@ -135,7 +135,7 @@ async function userToken(stale = false): Promise<Settings> {
     if (now.access !== before.access && now.accessExpires - Date.now() > margin) return now;
     if (now.refreshExpires < Date.now())
       throw new Error("your GitHub sign-in ran out: run the plugin's setup again to sign in");
-    const response = await fetch(`${now.service}/renew`, {
+    const response = await fetch(`${now.service}/github/renew`, {
       method: "POST",
       headers: { ...headers, "content-type": "application/json" },
       body: JSON.stringify({ refresh_token: now.refresh }),
@@ -197,7 +197,7 @@ export async function repositoryToken(repository: string): Promise<string> {
     )
       return token;
   }
-  const made = record(await askService("/token", { repository }), "the service's token");
+  const made = record(await askService("/github/token", { repository }), "the service's token");
   const token = text(made.token, "the service's token");
   // Read again, as another call may have saved a token for another repository meanwhile.
   const now = readJson("tokens.json");

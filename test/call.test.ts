@@ -22,7 +22,7 @@ const inAnHour = () => new Date(Date.now() + 3600_000).toISOString();
 // has it not installed.
 function world(asked: Asked): Response | undefined {
   const { method, path, auth } = asked;
-  if (method === "POST" && path === "/service/token") {
+  if (method === "POST" && path === "/service/github/token") {
     if (auth !== "Bearer user-token")
       return json({ error: "GitHub doesn't accept your sign-in" }, 401);
     const { repository } = JSON.parse(asked.body);
@@ -91,7 +91,7 @@ test("a repository's token is asked for once and used until it nearly runs out",
     asked.path === "/api/repos/simon/app/issues/12/reactions" ? json({}, 201) : world(asked);
   await ask({ ask: "took", repository: "simon/app", task: "12" });
   await ask({ ask: "took", repository: "simon/app", task: "12" });
-  expect(sent("/service/token")).toEqual([{ repository: "simon/app" }]);
+  expect(sent("/service/github/token")).toEqual([{ repository: "simon/app" }]);
   const reactions = fake.asked.filter((a) => a.path.endsWith("/reactions"));
   expect(reactions.map((a) => a.auth)).toEqual(["Bearer ghs_app", "Bearer ghs_app"]);
   expect(JSON.parse(reactions[0]?.body ?? "")).toEqual({ content: "eyes" });
@@ -102,7 +102,7 @@ test("a sign-in about to run out is renewed through the service once, by calls a
   dir = signedIn({ access: "old-token", accessExpires: Date.now() + 60_000 });
   let renewals = 0;
   fake.route = (asked) => {
-    if (asked.path === "/service/renew") {
+    if (asked.path === "/service/github/renew") {
       renewals++;
       // A refresh token works once.
       if (JSON.parse(asked.body).refresh_token !== "refresh-1")
@@ -524,15 +524,15 @@ test("log of a check that isn't from GitHub Actions answers its summary", async 
 
 test("wake and unwake ask skel's service to pass on, or stop, the repository's wake-ups", async () => {
   fake.route = (asked) =>
-    asked.path === "/service/wake" || asked.path === "/service/unwake"
+    asked.path === "/service/github/wake" || asked.path === "/service/github/unwake"
       ? new Response(null, { status: 204 })
       : world(asked);
   const url = "https://demo.sprites.app/github";
   expect(await ask({ ask: "wake", repository: "simon/app", url })).toBeNull();
   expect(await ask({ ask: "unwake", repository: "simon/app", url })).toBeNull();
-  expect(sent("/service/wake")).toEqual([{ repository: "simon/app", url }]);
-  expect(sent("/service/unwake")).toEqual([{ repository: "simon/app", url }]);
-  expect(fake.asked.find((a) => a.path === "/service/wake")?.auth).toBe("Bearer user-token");
+  expect(sent("/service/github/wake")).toEqual([{ repository: "simon/app", url }]);
+  expect(sent("/service/github/unwake")).toEqual([{ repository: "simon/app", url }]);
+  expect(fake.asked.find((a) => a.path === "/service/github/wake")?.auth).toBe("Bearer user-token");
 });
 
 test("a question the plugin doesn't answer, or a repository that isn't one, fails plainly", async () => {
