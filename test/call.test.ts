@@ -29,7 +29,7 @@ function world(asked: Asked): Response | undefined {
     if (repository === "simon/app") return json({ token: "ghs_app", expires: inAnHour() });
     return json(
       {
-        error: `skel's GitHub App isn't installed on ${repository}: install it at https://github.com/apps/skel/installations/new`,
+        error: `skel's GitHub App isn't installed on ${repository}: install it at https://github.com/apps/skelcrew/installations/new`,
       },
       404,
     );
@@ -82,7 +82,7 @@ test("claims answers null for a remote somewhere else, without asking anyone", a
 
 test("claims fails with the link that installs the app where it isn't installed", async () => {
   await expect(ask({ ask: "claims", remote: "git@github.com:simon/other.git" })).rejects.toThrow(
-    "install it at https://github.com/apps/skel/installations/new",
+    "install it at https://github.com/apps/skelcrew/installations/new",
   );
 });
 
@@ -126,7 +126,7 @@ test("a sign-in about to run out is renewed through the service once, by calls a
   expect(saved.refresh).toBe("refresh-2");
 });
 
-// A GraphQL answer for simon/app: issue 12 labeled skel, PR 26 from a thread, with checks,
+// A GraphQL answer for simon/app: issue 12 labeled skelcrew, PR 26 from a thread, with checks,
 // a review from skel's app and a comment from someone else, and PR 30 nobody watches.
 const issue12 = {
   number: 12,
@@ -136,7 +136,7 @@ const issue12 = {
   createdAt: "2026-11-01T10:00:00Z",
   updatedAt: "2026-11-09T10:00:00Z",
   author: { __typename: "User", login: "simon" },
-  labels: { nodes: [{ name: "skel" }] },
+  labels: { nodes: [{ name: "skelcrew" }] },
   state: "OPEN",
 };
 const pull = (n: number, updatedAt: string) => ({
@@ -146,7 +146,7 @@ const pull = (n: number, updatedAt: string) => ({
   url: `https://github.com/simon/app/pull/${n}`,
   createdAt: "2026-11-02T10:00:00Z",
   updatedAt,
-  author: { __typename: "Bot", login: "skel" },
+  author: { __typename: "Bot", login: "skelcrew" },
   labels: { nodes: [] },
   state: "OPEN",
   mergeable: "CONFLICTING",
@@ -158,7 +158,7 @@ const pull = (n: number, updatedAt: string) => ({
         databaseId: 501,
         state: "COMMENTED",
         body: "**Approved.**",
-        author: { __typename: "Bot", login: "skel" },
+        author: { __typename: "Bot", login: "skelcrew" },
         comments: { nodes: [] },
       },
       {
@@ -208,7 +208,7 @@ const pull = (n: number, updatedAt: string) => ({
                   status: "COMPLETED",
                   conclusion: "CANCELLED",
                 },
-                { __typename: "StatusContext", context: "skel/review", state: "SUCCESS" },
+                { __typename: "StatusContext", context: "skelcrew/check", state: "SUCCESS" },
               ],
             },
           },
@@ -258,7 +258,7 @@ test("changed with no next brings everything open, and the PRs skel watches, in 
   expect(query).toContain("states: [OPEN]");
   // The label is made when the plugin is first asked, as the tracker.
   expect(sent("/api/repos/simon/app/labels")).toEqual([
-    { name: "skel", color: "5319e7", description: "skel starts a thread on this issue" },
+    { name: "skelcrew", color: "5319e7", description: "Skelcrew starts a thread on this issue" },
   ]);
   expect(answer).toMatchObject({ next: "2026-11-09T11:00:00Z" });
   const { items } = answer as { items: ({ kind: string; id: string } & Record<string, unknown>)[] };
@@ -270,7 +270,7 @@ test("changed with no next brings everything open, and the PRs skel watches, in 
     body: "It redirects wrong.",
     state: "open",
     author: { login: "simon", bot: false, you: true, push: null },
-    labels: ["skel"],
+    labels: ["skelcrew"],
     link: "https://github.com/simon/app/issues/12",
     created: "2026-11-01T10:00:00Z",
     updated: "2026-11-09T10:00:00Z",
@@ -282,7 +282,7 @@ test("changed with no next brings everything open, and the PRs skel watches, in 
     title: "PR 26",
     body: "Closes #12",
     state: "open",
-    author: { login: "skel", bot: true, you: false, push: null },
+    author: { login: "skelcrew", bot: true, you: false, push: null },
     labels: [],
     link: "https://github.com/simon/app/pull/26",
     created: "2026-11-02T10:00:00Z",
@@ -294,13 +294,13 @@ test("changed with no next brings everything open, and the PRs skel watches, in 
       { name: "test", id: "9", state: "failed" },
       { name: "lint", id: "10", state: "running" },
       { name: "old", id: "11", state: "cancelled" },
-      { name: "skel/review", id: null, state: "passed" },
+      { name: "skelcrew/check", id: null, state: "passed" },
     ],
     reviews: [
       {
         id: "501",
         text: "**Approved.**",
-        author: { login: "skel", bot: true, you: false, push: false },
+        author: { login: "skelcrew", bot: true, you: false, push: false },
         verdict: "commented",
         lines: [],
       },
@@ -400,7 +400,7 @@ test("create task opens an issue and answers it as a task", async () => {
             title: "Add a logout",
             body: "Somewhere.",
             state: "open",
-            user: { login: "skel[bot]", type: "Bot" },
+            user: { login: "skelcrew[bot]", type: "Bot" },
             labels: [],
             html_url: "https://github.com/simon/app/issues/13",
             created_at: "2026-11-09T12:00:00Z",
@@ -424,7 +424,7 @@ test("create task opens an issue and answers it as a task", async () => {
     title: "Add a logout",
     body: "Somewhere.",
     state: "open",
-    author: { login: "skel[bot]", bot: true, you: false, push: null },
+    author: { login: "skelcrew[bot]", bot: true, you: false, push: null },
     labels: [],
     link: "https://github.com/simon/app/issues/13",
     created: "2026-11-09T12:00:00Z",
@@ -480,7 +480,7 @@ test("review posts a review that only comments, with the verdict first", async (
   ]);
 });
 
-test("status sets the skel/review check, cut to what GitHub takes", async () => {
+test("status sets the skelcrew/check status check, cut to what GitHub takes", async () => {
   const commit = "a".repeat(40);
   fake.route = (asked) =>
     asked.path === `/api/repos/simon/app/statuses/${commit}`
@@ -496,7 +496,7 @@ test("status sets the skel/review check, cut to what GitHub takes", async () => 
     }),
   ).toBeNull();
   expect(sent(`/api/repos/simon/app/statuses/${commit}`)).toEqual([
-    { state: "pending", context: "skel/review", description: "x".repeat(140) },
+    { state: "pending", context: "skelcrew/check", description: "x".repeat(140) },
   ]);
 });
 

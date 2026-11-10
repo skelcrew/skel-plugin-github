@@ -18,7 +18,7 @@ beforeEach(() => {
   fake.route = (asked) => {
     if (asked.path === "/service/")
       return json({
-        install: "https://github.com/apps/skel/installations/new",
+        install: "https://github.com/apps/skelcrew/installations/new",
         client_id: "Iv1.app",
       });
     if (asked.path === "/web/login/device/code")
@@ -48,10 +48,10 @@ beforeEach(() => {
 afterEach(() => removeSettings(dir));
 
 test("setup shows the install page, signs you in with a code, and saves the sign-in", async () => {
-  // Enter takes skel.run as the service, then says the app is installed.
+  // Enter takes skelcrew.dev as the service, then says the app is installed.
   const { code, out } = await run(fake.url, dir, ["setup.ts"], "\n\n");
   expect(code).toBe(0);
-  expect(out).toContain("https://github.com/apps/skel/installations/new");
+  expect(out).toContain("https://github.com/apps/skelcrew/installations/new");
   expect(out).toContain("open https://github.com/login/device and enter ABCD-1234");
   expect(out).toContain("Signed in to GitHub as simon.");
   const asked = new URLSearchParams(
@@ -61,7 +61,7 @@ test("setup shows the install page, signs you in with a code, and saves the sign
   const file = join(dir, "settings.json");
   const saved = JSON.parse(readFileSync(file, "utf8"));
   expect(saved).toMatchObject({
-    service: "https://skel.run",
+    service: "https://skelcrew.dev",
     login: "simon",
     access: "user-token",
     refresh: "refresh-1",
@@ -87,5 +87,5 @@ test("setup fails plainly when you don't authorize skel", async () => {
   )(fake.route);
   const { code, err } = await run(fake.url, dir, ["setup.ts"], "\n\n");
   expect(code).toBe(1);
-  expect(err).toContain("you didn't authorize skel on GitHub");
+  expect(err).toContain("you didn't authorize Skelcrew on GitHub");
 });

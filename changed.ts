@@ -222,15 +222,15 @@ async function addPush(repository: string, pulls: Item[]): Promise<void> {
   if (Object.keys(fresh).length > 0) writeJson("push.json", { ...kept, ...fresh });
 }
 
-// Creates the skel label in a repository whose tracker the plugin is, so you can add it to an
+// Creates the skelcrew label in a repository whose tracker the plugin is, so you can add it to an
 // issue to start a thread. GitHub answers 422 when the label is there already.
 async function createLabel(repository: string): Promise<void> {
   await rest(
     repository,
-    `create the skel label in ${repository}`,
+    `create the skelcrew label in ${repository}`,
     "POST",
     "/labels",
-    { name: "skel", color: "5319e7", description: "skel starts a thread on this issue" },
+    { name: "skelcrew", color: "5319e7", description: "Skelcrew starts a thread on this issue" },
     [422],
   );
 }

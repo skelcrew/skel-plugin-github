@@ -34,7 +34,7 @@ async function deviceFlow(clientId: string): Promise<unknown> {
   const code = text(device.user_code, "GitHub's code");
   const link = text(device.verification_uri, "GitHub's link");
   let wait = typeof device.interval === "number" ? device.interval : 5;
-  console.log(`\nSign in to GitHub: open ${link} and enter ${code}, then authorize skel.`);
+  console.log(`\nSign in to GitHub: open ${link} and enter ${code}, then authorize Skelcrew.`);
   openPage(link);
   for (;;) {
     await Bun.sleep(wait * 1000);
@@ -54,7 +54,7 @@ async function deviceFlow(clientId: string): Promise<unknown> {
       continue;
     }
     if (got.error === "expired_token") throw new Error("the code ran out: run the setup again");
-    if (got.error === "access_denied") throw new Error("you didn't authorize skel on GitHub");
+    if (got.error === "access_denied") throw new Error("you didn't authorize Skelcrew on GitHub");
     if (typeof got.error === "string") throw new Error(`GitHub refused the sign-in: ${got.error}`);
     return got;
   }
@@ -62,15 +62,16 @@ async function deviceFlow(clientId: string): Promise<unknown> {
 
 settingsDir();
 try {
-  const service = (prompt("skel's service:", "https://skel.run") ?? "https://skel.run").replace(
-    /\/+$/,
-    "",
-  );
+  const service = (
+    prompt("Skelcrew's service:", "https://skelcrew.dev") ?? "https://skelcrew.dev"
+  ).replace(/\/+$/, "");
   const found = await fetch(`${service}/`, { headers });
-  if (!found.ok) throw new Error(`${service} isn't skel's service: HTTP ${found.status}`);
+  if (!found.ok) throw new Error(`${service} isn't Skelcrew's service: HTTP ${found.status}`);
   const app = record(await found.json(), `${service}'s answer`);
   const install = text(app.install, "the app's install page");
-  console.log(`\nInstall skel's GitHub App on the repositories skel should work on:\n  ${install}`);
+  console.log(
+    `\nInstall Skelcrew's GitHub App on the repositories Skelcrew should work on:\n  ${install}`,
+  );
   openPage(install);
   prompt("Press Enter once it is installed.");
   const signIn = await deviceFlow(text(app.client_id, "the app's client ID"));
@@ -81,7 +82,7 @@ try {
   if (!user.ok) throw new Error(`GitHub didn't say who you are: HTTP ${user.status}`);
   const login = text(record(await user.json(), "your GitHub account").login, "your login");
   writeJson("settings.json", signInFrom(signIn, service, login));
-  console.log(`Signed in to GitHub as ${login}. skel acts there as skel's app, never as you.`);
+  console.log(`Signed in to GitHub as ${login}. Skelcrew acts there as its app, never as you.`);
 } catch (error) {
   console.error(error instanceof Error ? error.message : String(error));
   process.exit(1);

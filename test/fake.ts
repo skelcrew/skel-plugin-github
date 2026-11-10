@@ -42,13 +42,13 @@ export function startFake() {
 }
 
 // Returns a new settings folder, signed in as simon with a sign-in good for hours, through
-// skel's service at skel.run. Removed by `removeSettings`.
+// skel's service at skelcrew.dev. Removed by `removeSettings`.
 export function signedIn(overrides: object = {}): string {
   const dir = mkdtempSync(join(tmpdir(), "skel-plugin-github-"));
   writeFileSync(
     join(dir, "settings.json"),
     JSON.stringify({
-      service: "https://skel.run",
+      service: "https://skelcrew.dev",
       login: "simon",
       access: "user-token",
       accessExpires: Date.now() + 8 * 3600_000,
@@ -74,8 +74,8 @@ export async function run(fakeUrl: string, dir: string, words: string[], input: 
       // As over SSH, so setup prints its links and never opens a browser.
       env: {
         ...process.env,
-        SKEL_PLUGIN: "github",
-        SKEL_PLUGIN_CONFIG: dir,
+        SKELCREW_PLUGIN: "github",
+        SKELCREW_PLUGIN_CONFIG: dir,
         FAKE_GITHUB: fakeUrl,
         SSH_CONNECTION: "test",
       },

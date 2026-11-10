@@ -1,4 +1,4 @@
-// Loaded before the plugin in tests: sends its requests to GitHub, github.com and skel.run to
+// Loaded before the plugin in tests: sends its requests to GitHub, github.com and skelcrew.dev to
 // the test's fake instead, so no test reaches the real ones.
 const fake = process.env.FAKE_GITHUB;
 if (!fake) throw new Error("FAKE_GITHUB isn't set");
@@ -9,7 +9,7 @@ globalThis.fetch = Object.assign(
     const moved = url
       .replace(/^https:\/\/api\.github\.com/, `${fake}/api`)
       .replace(/^https:\/\/github\.com/, `${fake}/web`)
-      .replace(/^https:\/\/skel\.run/, `${fake}/service`);
+      .replace(/^https:\/\/skelcrew\.dev/, `${fake}/service`);
     return real(input instanceof Request ? new Request(moved, input) : moved, init);
   },
   { preconnect: real.preconnect },

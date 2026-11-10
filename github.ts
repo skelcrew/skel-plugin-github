@@ -8,8 +8,8 @@ const headers = { "user-agent": "skel-plugin-github", accept: "application/vnd.g
 
 // Returns the folder skel gives the plugin for its settings and tokens.
 export function settingsDir(): string {
-  const dir = process.env.SKEL_PLUGIN_CONFIG;
-  if (!dir) throw new Error("SKEL_PLUGIN_CONFIG isn't set: skel runs this plugin, not you");
+  const dir = process.env.SKELCREW_PLUGIN_CONFIG;
+  if (!dir) throw new Error("SKELCREW_PLUGIN_CONFIG isn't set: Skelcrew runs this plugin, not you");
   return dir;
 }
 

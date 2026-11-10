@@ -120,7 +120,7 @@ async function openPr(
 
 // Answers `review`: posts the reviewer's verdict on the PR as a review that only comments,
 // for the commit it covers. GitHub doesn't let a PR's author approve it, and skel's app opened
-// the PR, so the verdict is in its first words, and the skel/review check carries it.
+// the PR, so the verdict is in its first words, and the skelcrew/check check carries it.
 async function review(
   repository: string,
   pr: number,
@@ -209,12 +209,12 @@ async function answer(question: Record<string, unknown>): Promise<unknown> {
     // GitHub refuses a description longer than 140 characters.
     await rest(
       repository,
-      `set the skel/review check on ${commit}`,
+      `set the skelcrew/check check on ${commit}`,
       "POST",
       `/statuses/${commit}`,
       {
         state: text(question.state, "the state"),
-        context: "skel/review",
+        context: "skelcrew/check",
         description: text(question.description, "the description").slice(0, 140),
       },
     );
@@ -229,7 +229,7 @@ async function answer(question: Record<string, unknown>): Promise<unknown> {
 }
 
 try {
-  const question = record(JSON.parse(await Bun.stdin.text()), "skel's question");
+  const question = record(JSON.parse(await Bun.stdin.text()), "Skelcrew's question");
   console.log(JSON.stringify(await answer(question)));
 } catch (error) {
   console.error(error instanceof Error ? error.message : String(error));
