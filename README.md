@@ -2,7 +2,7 @@
 
 skel's GitHub plugin: tasks from GitHub issues, and PRs on GitHub. It is a tracker and a forge
 for [skel](https://github.com/skelcrew/skel). Everything it does on GitHub, it does as skel's
-GitHub App, so every PR, review, comment, reaction and push shows as `skel[bot]`. skel never
+GitHub App, so every PR, review, comment, reaction and push shows as `skel-ai[bot]`. skel never
 acts on GitHub as you.
 
 ## Installing
