@@ -6,6 +6,7 @@ import { changed, type Item } from "./changed.ts";
 import {
   askService,
   asYou,
+  githubRemote,
   list,
   number,
   record,
@@ -29,17 +30,6 @@ function numberOf(value: unknown, what: string): number {
   const given = typeof value === "number" ? String(value) : text(value, what);
   if (!/^\d+$/.test(given)) throw new Error(`${given} isn't ${what}`);
   return Number(given);
-}
-
-// Returns the owner and name of a GitHub repository from a git remote, in any form git writes
-// one for github.com, or from its full name, as you name it to skel repo add, or null for a
-// remote somewhere else.
-function githubRemote(remote: string): { owner: string; name: string } | null {
-  const found = remote.match(
-    /^(?:(?:https?|ssh|git):\/\/(?:[^@/]+@)?github\.com(?::\d+)?\/|[^@/:]+@github\.com:|)([\w.-]+)\/([\w.-]+?)(?:\.git)?\/?$/,
-  );
-  if (!found?.[1] || !found[2]) return null;
-  return { owner: found[1], name: found[2] };
 }
 
 // Returns who commits as the app, as GitHub names its bot: the app's name from its install

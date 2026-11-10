@@ -65,8 +65,15 @@ export const removeSettings = (dir: string) => rmSync(dir, { recursive: true, fo
 const root = join(import.meta.dir, "..");
 
 // Runs one of the plugin's commands as skel does, over SSH, in the plugin's folder with its settings
-// folder, with its requests sent to the fake. Returns its exit code and output.
-export async function run(fakeUrl: string, dir: string, words: string[], input: string) {
+// folder, with its requests sent to the fake, and `more` in its environment. Returns its exit
+// code and output.
+export async function run(
+  fakeUrl: string,
+  dir: string,
+  words: string[],
+  input: string,
+  more: Record<string, string> = {},
+) {
   const child = Bun.spawn(
     [process.execPath, "--preload", join(root, "test", "redirect.ts"), ...words],
     {
@@ -78,6 +85,8 @@ export async function run(fakeUrl: string, dir: string, words: string[], input: 
         SKELCREW_PLUGIN_CONFIG: dir,
         FAKE_GITHUB: fakeUrl,
         SSH_CONNECTION: "test",
+        SKELCREW_REMOTE: "",
+        ...more,
       },
       stdin: new Blob([input]),
       stdout: "pipe",
