@@ -30,19 +30,38 @@ function numberOf(value: unknown, what: string): number {
 }
 
 // Returns the owner and name of a GitHub repository from a git remote, in any form git writes
-// one for github.com, or null for a remote somewhere else.
+// one for github.com, or from its full name, as you name it to skel repo add, or null for a
+// remote somewhere else.
 function githubRemote(remote: string): { owner: string; name: string } | null {
   const found = remote.match(
-    /^(?:(?:https?|ssh|git):\/\/(?:[^@/]+@)?github\.com(?::\d+)?\/|[^@/:]+@github\.com:)([\w.-]+)\/([\w.-]+?)(?:\.git)?\/?$/,
+    /^(?:(?:https?|ssh|git):\/\/(?:[^@/]+@)?github\.com(?::\d+)?\/|[^@/:]+@github\.com:|)([\w.-]+)\/([\w.-]+?)(?:\.git)?\/?$/,
   );
   if (!found?.[1] || !found[2]) return null;
   return { owner: found[1], name: found[2] };
 }
 
+// Returns who commits as the app, as GitHub names its bot: the app's name from its install
+// page, which the service names, and the bot's ID, which links a commit to it.
+async function appBot(): Promise<{ name: string; email: string }> {
+  const { service } = settings();
+  const found = await fetch(`${service}/github`, {
+    headers: { "user-agent": "skel-plugin-github", accept: "application/json" },
+  });
+  if (!found.ok) throw new Error(`${service} didn't name its app: HTTP ${found.status}`);
+  const install = text(record(await found.json(), "the service's answer").install, "the app");
+  const slug = install.match(/\/apps\/([\w-]+)\//)?.[1];
+  if (!slug) throw new Error(`${install} isn't a GitHub App's install page`);
+  const name = `${slug}[bot]`;
+  const bot = await asYou(`/users/${encodeURIComponent(name)}`);
+  if (bot.status !== 200) throw new Error(`GitHub doesn't know ${name}`);
+  const id = number(record(bot.body, name).id, `${name}'s ID`);
+  return { name, email: `${id}+${name}@users.noreply.github.com` };
+}
+
 // Answers `claims`: the repository's key, short name, link and clone URL, whether you can
-// push to it and whether it is a fork, or null for a remote that isn't on GitHub. Asking the
-// service for a token checks that the app is installed there, and its refusal names the page
-// that installs it.
+// push to it, whether it is a fork, and who commits as the app, or null for a remote that
+// isn't on GitHub. Asking the service for a token checks that the app is installed there, and
+// its refusal names the page that installs it.
 async function claims(remote: string) {
   const found = githubRemote(remote);
   if (!found) return null;
@@ -60,6 +79,7 @@ async function claims(remote: string) {
     clone: text(repo.clone_url, "the repository's clone URL"),
     push: permissions.push === true,
     fork: repo.fork === true,
+    author: await appBot(),
   };
 }
 

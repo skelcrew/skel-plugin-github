@@ -43,6 +43,12 @@ function world(asked: Asked): Response | undefined {
       fork: false,
       permissions: { push: true },
     });
+  if (method === "GET" && path === "/service/github")
+    return json({
+      install: "https://github.com/apps/skelcrew/installations/new",
+      client_id: "Iv1.app",
+    });
+  if (path === "/api/users/skelcrew%5Bbot%5D") return json({ login: "skelcrew[bot]", id: 41 });
   if (path === "/api/repos/simon/other" && auth === "Bearer user-token")
     return json({ full_name: "simon/other", name: "other", permissions: { push: true } });
   return undefined;
@@ -58,7 +64,8 @@ async function ask(question: object): Promise<unknown> {
 const sent = (path: string) =>
   fake.asked.filter((a) => a.path === path).map((a) => JSON.parse(a.body || "null"));
 
-test("claims answers for a remote on GitHub, in any form git writes one", async () => {
+// Commits are authored by the app's bot, as GitHub names it, so they show as the app's.
+test("claims answers for a remote on GitHub, in any form git writes one, or its full name", async () => {
   const claimed = {
     key: "simon/app",
     name: "app",
@@ -66,11 +73,13 @@ test("claims answers for a remote on GitHub, in any form git writes one", async 
     clone: "https://github.com/simon/app.git",
     push: true,
     fork: false,
+    author: { name: "skelcrew[bot]", email: "41+skelcrew[bot]@users.noreply.github.com" },
   };
   for (const remote of [
     "git@github.com:simon/app.git",
     "https://github.com/simon/app",
     "ssh://git@github.com/simon/app.git",
+    "simon/app",
   ])
     expect(await ask({ ask: "claims", remote })).toEqual(claimed);
 });

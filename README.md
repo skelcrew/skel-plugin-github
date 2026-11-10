@@ -52,7 +52,7 @@ names its kind in `ask`. A repository is named `owner/name`, its key from `claim
 
 | `ask` | Also given | Answer |
 | --- | --- | --- |
-| `claims` | `remote` | `{ key, name, link, clone, push, fork }`, or `null` for a remote not on GitHub |
+| `claims` | `remote`, or a repository's full name, such as `simon/app` | `{ key, name, link, clone, push, fork, author }`, or `null` for a remote not on GitHub. `author` is the app's bot, `{ name, email }`, which skel makes the author of a thread's commits, with you as co-author |
 | `changed` | `repository`, `jobs` (`tracker`, `forge`), `next` or null, `prs` (numbers) | `{ items, next }` |
 | `create task` | `repository`, `title`, `body` | The new task, as an item |
 | `took` | `repository`, `task` | `null`, after reacting with 👀 |
