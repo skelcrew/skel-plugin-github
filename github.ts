@@ -201,9 +201,9 @@ export async function askService(path: string, body: object, missing?: string): 
 }
 
 // Returns a token from skel's app for the repository, reused while it has more than a few
-// minutes left. The service makes it for that repository alone, for an hour. Its 404 means the
-// app isn't installed there, as a repository you can't reach is turned away before: the
-// setup installs it.
+// minutes left. The service makes it for that repository alone, for an hour. Its 404 is taken
+// as the app not being installed there, which the setup fixes. The service answers 404 for a
+// repository you can't reach too, but claims asks GitHub about that first, with its own error.
 export async function repositoryToken(repository: string): Promise<string> {
   const saved = readJson("tokens.json");
   const tokens = saved === null ? {} : record(saved, "the plugin's tokens.json");

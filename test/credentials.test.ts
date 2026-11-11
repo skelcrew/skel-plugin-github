@@ -41,15 +41,26 @@ test("git gets nothing for another host, or without the repository's path", asyn
   expect(fake.asked).toEqual([]);
 });
 
-test("a repository the app can't reach fails with the service's words", async () => {
+test("a repository the app isn't installed on exits 2, so Skelcrew runs the setup", async () => {
   fake.route = (asked) =>
     asked.path === "/service/github/token"
       ? json({ error: "skel's GitHub App isn't installed" }, 404)
       : undefined;
   const { code, out, err } = await helper("get", "protocol=https\nhost=github.com\npath=simon/x\n");
+  expect(code).toBe(2);
+  expect(out).toBe("");
+  expect(err).toBe("Skelcrew's GitHub App isn't installed on simon/x\n");
+});
+
+test("any other refusal fails with the service's words", async () => {
+  fake.route = (asked) =>
+    asked.path === "/service/github/token"
+      ? json({ error: "too many requests: wait a minute" }, 429)
+      : undefined;
+  const { code, out, err } = await helper("get", "protocol=https\nhost=github.com\npath=simon/x\n");
   expect(code).toBe(1);
   expect(out).toBe("");
-  expect(err).toContain("skel's GitHub App isn't installed");
+  expect(err).toContain("too many requests: wait a minute");
 });
 
 test("a lapsed sign-in exits 2, naming the command that signs in again", async () => {

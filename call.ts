@@ -52,8 +52,8 @@ async function appBot(): Promise<{ name: string; email: string }> {
 
 // Answers `claims`: the repository's key, short name, link and clone URL, whether you can
 // push to it, whether it is a fork, and who commits as the app, or null for a remote that
-// isn't on GitHub. Asking the service for a token checks that the app is installed there, and
-// its refusal names the page that installs it.
+// isn't on GitHub. Asking the service for a token checks that the app is installed there. Where
+// it isn't, claims exits 2, so from your terminal Skelcrew runs the setup, which installs it.
 async function claims(remote: string) {
   const found = githubRemote(remote);
   if (!found) return null;
