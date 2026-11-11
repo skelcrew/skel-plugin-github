@@ -1,6 +1,7 @@
 // The plugin's setup, run in your terminal when Skelcrew installs it: it signs you in to Skelcrew's
 // GitHub App with GitHub's device flow, then has you install the app on the repository Skelcrew
-// was run in, so nothing is pasted. Run again, it does the same, such as to sign in again.
+// was run in, so nothing is pasted. Run again, it skips what is done already, such as a
+// sign-in that still works, so Skelcrew can run it just to install the app.
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import {
@@ -8,6 +9,8 @@ import {
   githubRemote,
   list,
   record,
+  SetupNeeded,
+  settings,
   settingsDir,
   signInFrom,
   text,
@@ -96,6 +99,27 @@ function serviceAddress(): string {
   const file = join(settingsDir(), "service");
   const named = existsSync(file) ? readFileSync(file, "utf8").trim() : "";
   return (named || "https://skelcrew.dev").replace(/\/+$/, "");
+}
+
+// Reports whether the saved sign-in still works with this service, renewing it first if it
+// must, so setup asks you to sign in only when it has to. One saved for another service, such
+// as before you named your own, doesn't count, as its renewals go through that service.
+async function stillSignedIn(service: string): Promise<boolean> {
+  // A settings file that is missing or can't be read is replaced by signing in, as setup is
+  // what fixes it.
+  try {
+    if (settings().service !== service) return false;
+  } catch {
+    return false;
+  }
+  try {
+    return (await asYou("/user")).status === 200;
+  } catch (error) {
+    // A sign-in that can't be renewed. Anything else, such as no network, is setup's failure
+    // too, and is said as it is.
+    if (error instanceof SetupNeeded) return false;
+    throw error;
+  }
 }
 
 type Installation = { id: number; owner: string; all: boolean; page: string };
@@ -198,15 +222,17 @@ try {
   if (!found.ok) throw new Error(`${service} isn't Skelcrew's service: HTTP ${found.status}`);
   const app = record(await found.json(), `${service}'s answer`);
   // Signing in comes first, as only your sign-in can see when the app is installed.
-  const signIn = await deviceFlow(text(app.client_id, "the app's client ID"));
-  const access = text(record(signIn, "GitHub's sign-in").access_token, "GitHub's user token");
-  const user = await fetch("https://api.github.com/user", {
-    headers: { ...headers, authorization: `Bearer ${access}` },
-  });
-  if (!user.ok) throw new Error(`GitHub didn't say who you are: HTTP ${user.status}`);
-  const login = text(record(await user.json(), "your GitHub account").login, "your login");
-  writeJson("settings.json", signInFrom(signIn, service, login));
-  console.log(`Signed in to GitHub as ${login}.`);
+  if (!(await stillSignedIn(service))) {
+    const signIn = await deviceFlow(text(app.client_id, "the app's client ID"));
+    const access = text(record(signIn, "GitHub's sign-in").access_token, "GitHub's user token");
+    const user = await fetch("https://api.github.com/user", {
+      headers: { ...headers, authorization: `Bearer ${access}` },
+    });
+    if (!user.ok) throw new Error(`GitHub didn't say who you are: HTTP ${user.status}`);
+    const login = text(record(await user.json(), "your GitHub account").login, "your login");
+    writeJson("settings.json", signInFrom(signIn, service, login));
+    console.log(`Signed in to GitHub as ${login}.`);
+  }
   await installApp(text(app.install, "the app's install page"));
 } catch (error) {
   console.error(error instanceof Error ? error.message : String(error));
