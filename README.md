@@ -70,6 +70,7 @@ Each question names its kind in `ask`. A repository is named `owner/name`, its k
 | `close pr` | `repository`, `pr`, `branch`, `comment` or null | `null`, after posting the comment if there is one, closing the PR and deleting the branch |
 | `review` | `repository`, `pr`, `commit`, `verdict` (`approve` or `changes`), `body` | `{ id }` |
 | `status` | `repository`, `commit`, `state` (`pending`, `success` or `failure`), `description` | `null`, after setting the `skelcrew/check` status check |
+| `seen` | `repository`, `pr`, `kind` (`comment` or `review`), `id` | `null`, after reacting with 👀 to a person's comment or review that skel typed into the builder. A review is reacted to itself, not its line comments, through GitHub's GraphQL API, as its REST API has no reactions on a review |
 | `log` | `repository`, `check` | `{ log }`: the end of the failed check's log |
 | `wake`, `unwake` | `repository`, `url` | `null`, after asking Skelcrew's service to start or stop passing wake-ups to the address |
 
