@@ -1,5 +1,5 @@
 name: github
-version: 0.3.0
+version: 0.5.0
 skelcrew: 0.1.0
 about: Work with issues, pull requests and CI on your repositories
 jobs: [tracker, forge]
