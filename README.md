@@ -67,6 +67,7 @@ Each question names its kind in `ask`. A repository is named `owner/name`, its k
 | `create task` | `repository`, `title`, `body` | The new task, as an item |
 | `took` | `repository`, `task` | `null`, after reacting with 👀 |
 | `open pr` | `repository`, `branch`, `base`, `title`, `body` | `{ number }`, of the PR already open from the branch if there is one |
+| `close pr` | `repository`, `pr`, `branch`, `comment` or null | `null`, after posting the comment if there is one, closing the PR and deleting the branch |
 | `review` | `repository`, `pr`, `commit`, `verdict` (`approve` or `changes`), `body` | `{ id }` |
 | `status` | `repository`, `commit`, `state` (`pending`, `success` or `failure`), `description` | `null`, after setting the `skelcrew/check` status check |
 | `seen` | `repository`, `pr`, `kind` (`comment` or `review`), `id` | `null`, after reacting with 👀 to a person's comment or review that skel typed into the builder. A review is reacted to itself, not its line comments, through GitHub's GraphQL API, as its REST API has no reactions on a review |
