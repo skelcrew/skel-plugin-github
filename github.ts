@@ -4,7 +4,7 @@ import { mkdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } 
 import { join } from "node:path";
 
 // GitHub refuses API requests without a user agent.
-const headers = { "user-agent": "skel-plugin-github", accept: "application/vnd.github+json" };
+const headers = { "user-agent": "skelcrew-github", accept: "application/vnd.github+json" };
 
 // Returns the folder skel gives the plugin for its settings and tokens.
 export function settingsDir(): string {

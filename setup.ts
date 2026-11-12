@@ -17,7 +17,7 @@ import {
   writeJson,
 } from "./github.ts";
 
-const headers = { "user-agent": "skel-plugin-github", accept: "application/json" };
+const headers = { "user-agent": "skelcrew-github", accept: "application/json" };
 
 // Returns the program that opens a page in your browser when this machine has one you sit at:
 // a Mac, or a Linux desktop. Over SSH or on a Sprite the browser would be on another screen or

@@ -1,4 +1,4 @@
-# skel-plugin-github
+# skelcrew-github
 
 Skelcrew's GitHub plugin: work with issues, pull requests and CI on your repositories. It is a tracker and a
 forge for [Skelcrew](https://github.com/skelcrew/skelcrew). Everything it does on GitHub, it does
@@ -8,11 +8,11 @@ as Skelcrew's GitHub App, so every PR, review, comment, reaction and push shows 
 ## Installing
 
 ```sh
-sc plugin install skelcrew/skel-plugin-github
+sc plugin install skelcrew/skelcrew-github
 ```
 
 `sc` in a checkout of a GitHub repository offers to install it for you. On a server or Sprite, install it there:
-`sc --remote sprite:demo plugin install skelcrew/skel-plugin-github`.
+`sc --remote sprite:demo plugin install skelcrew/skelcrew-github`.
 
 It needs nothing else installed: it is written for Bun, which Skelcrew brings, and has no
 dependencies. It reaches GitHub through its REST and GraphQL APIs.
@@ -36,7 +36,7 @@ Then, in a checkout, `sc init` names GitHub as the repository's tracker.
 
 ## What it needs
 
-- **Skelcrew's service**, [skel-service](https://github.com/skelcrew/skel-service), at
+- **Skelcrew's service**, [skelcrew-service](https://github.com/skelcrew/skelcrew-service), at
   `https://skelcrew.dev`. To use one you run yourself, write its address in a file named
   `service` in the plugin's settings folder, then run `sc plugin setup github`. The app's secrets live there. The plugin asks
   it for a token for each repository, which works only there, for an hour, and for your sign-in
@@ -115,7 +115,7 @@ bun run check    # format, lint, typecheck and tests
 
 The tests run each command as Skelcrew does, with a fake GitHub and a fake service.
 
-To try a change in Skelcrew: `sc plugin install ./skel-plugin-github` uses your folder where
+To try a change in Skelcrew: `sc plugin install ./skelcrew-github` uses your folder where
 it is, and `sc plugin update github` picks up your edits.
 
 A release is a version tag, such as `v0.1.0`, matching `version` in `skelcrew-plugin.yaml`.

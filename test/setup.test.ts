@@ -26,7 +26,7 @@ const onSimon = (selection = "selected") => ({
 const app = "git@github.com:simon/app.git";
 
 beforeEach(() => {
-  dir = mkdtempSync(join(tmpdir(), "skel-plugin-github-"));
+  dir = mkdtempSync(join(tmpdir(), "skelcrew-github-"));
   fake.asked = [];
   polls = 0;
   installed = [[], [onSimon()]];

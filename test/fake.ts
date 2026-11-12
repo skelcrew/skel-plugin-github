@@ -44,7 +44,7 @@ export function startFake() {
 // Returns a new settings folder, signed in as simon with a sign-in good for hours, through
 // skel's service at skelcrew.dev. Removed by `removeSettings`.
 export function signedIn(overrides: object = {}): string {
-  const dir = mkdtempSync(join(tmpdir(), "skel-plugin-github-"));
+  const dir = mkdtempSync(join(tmpdir(), "skelcrew-github-"));
   writeFileSync(
     join(dir, "settings.json"),
     JSON.stringify({
