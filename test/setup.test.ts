@@ -54,6 +54,8 @@ beforeEach(() => {
     }
     if (asked.path === "/api/user" && asked.auth === "Bearer user-token")
       return json({ login: "simon" });
+    // As GitHub answers a sign-in it no longer accepts.
+    if (asked.path === "/api/user") return json({ message: "Bad credentials" }, 401);
     // Anyone may read a public repository, with no sign-in.
     if (asked.path === "/api/repos/simon/app" && asked.auth === null)
       return json({ id: 5678, private: false, owner: { login: "simon", id: 1234 } });
@@ -262,4 +264,19 @@ test("a sign-in GitHub refuses, or one with another service, is asked for again"
   const moved = await run(fake.url, dir, ["setup.ts"], "", { SKELCREW_REMOTE: app });
   expect(moved.code).toBe(0);
   expect(moved.out).toContain("Signed in to GitHub as simon.");
+});
+
+// A GitHub that is down or limiting requests says nothing about the sign-in, so asking you to
+// sign in again would only hide what went wrong.
+test("when GitHub can't answer, setup says so instead of asking you to sign in again", async () => {
+  removeSettings(dir);
+  dir = signedIn();
+  fake.route = (
+    (before) => (a: Asked) =>
+      a.path === "/api/user" ? json({ message: "Service Unavailable" }, 503) : before(a)
+  )(fake.route);
+  const { code, err } = await run(fake.url, dir, ["setup.ts"], "", { SKELCREW_REMOTE: app });
+  expect(code).toBe(1);
+  expect(err).toContain("503");
+  expect(asked("/web/login/device/code")).toEqual([]);
 });

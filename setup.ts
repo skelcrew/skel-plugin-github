@@ -113,7 +113,13 @@ async function stillSignedIn(service: string): Promise<boolean> {
     return false;
   }
   try {
-    return (await asYou("/user")).status === 200;
+    // Only a 401 means GitHub refused the sign-in. Any other failure, such as GitHub being down
+    // or limiting requests, says nothing about it, and signing in again wouldn't help.
+    const { status } = await asYou("/user");
+    if (status === 401) return false;
+    if (status !== 200)
+      throw new Error(`GitHub couldn't check your sign-in: it answered ${status}`);
+    return true;
   } catch (error) {
     // A sign-in that can't be renewed. Anything else, such as no network, is setup's failure
     // too, and is said as it is.
