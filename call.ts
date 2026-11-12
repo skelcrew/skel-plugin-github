@@ -37,7 +37,7 @@ function numberOf(value: unknown, what: string): number {
 async function appBot(): Promise<{ name: string; email: string }> {
   const { service } = settings();
   const found = await fetch(`${service}/github`, {
-    headers: { "user-agent": "skel-plugin-github", accept: "application/json" },
+    headers: { "user-agent": "skelcrew-github", accept: "application/json" },
   });
   if (!found.ok) throw new Error(`${service} didn't name its app: HTTP ${found.status}`);
   const install = text(record(await found.json(), "the service's answer").install, "the app");
@@ -156,7 +156,7 @@ async function log(repository: string, check: string): Promise<{ log: string }> 
   const token = await repositoryToken(repository);
   const response = await fetch(
     `https://api.github.com/repos/${repository}/actions/jobs/${check}/logs`,
-    { headers: { authorization: `Bearer ${token}`, "user-agent": "skel-plugin-github" } },
+    { headers: { authorization: `Bearer ${token}`, "user-agent": "skelcrew-github" } },
   );
   let lines: string[];
   if (response.ok)
