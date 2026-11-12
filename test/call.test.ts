@@ -89,10 +89,13 @@ test("claims answers null for a remote somewhere else, without asking anyone", a
   expect(fake.asked).toEqual([]);
 });
 
-test("claims fails with the link that installs the app where it isn't installed", async () => {
-  await expect(ask({ ask: "claims", remote: "git@github.com:simon/other.git" })).rejects.toThrow(
-    "install it at https://github.com/apps/skelcrew/installations/new",
-  );
+// Exit code 2 has Skelcrew run the setup, which installs the app, from your terminal.
+test("claims exits 2 where the app isn't installed, saying so", async () => {
+  const question = JSON.stringify({ ask: "claims", remote: "git@github.com:simon/other.git" });
+  const { code, out, err } = await run(fake.url, dir, ["call.ts"], question);
+  expect(code).toBe(2);
+  expect(out).toBe("");
+  expect(err).toBe("Skelcrew's GitHub App isn't installed on simon/other\n");
 });
 
 test("a repository's token is asked for once and used until it nearly runs out", async () => {

@@ -4,7 +4,7 @@ import { afterAll, afterEach, beforeEach, expect, test } from "bun:test";
 import { chmodSync, mkdirSync, mkdtempSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { type Asked, json, removeSettings, run, startFake } from "./fake.ts";
+import { type Asked, json, removeSettings, run, signedIn, startFake } from "./fake.ts";
 
 const fake = startFake();
 afterAll(() => fake.stop());
@@ -54,6 +54,8 @@ beforeEach(() => {
     }
     if (asked.path === "/api/user" && asked.auth === "Bearer user-token")
       return json({ login: "simon" });
+    // As GitHub answers a sign-in it no longer accepts.
+    if (asked.path === "/api/user") return json({ message: "Bad credentials" }, 401);
     // Anyone may read a public repository, with no sign-in.
     if (asked.path === "/api/repos/simon/app" && asked.auth === null)
       return json({ id: 5678, private: false, owner: { login: "simon", id: 1234 } });
@@ -230,4 +232,51 @@ test("setup fails plainly when you don't authorize skel", async () => {
   const { code, err } = await run(fake.url, dir, ["setup.ts"], "");
   expect(code).toBe(1);
   expect(err).toContain("you didn't authorize Skelcrew on GitHub");
+});
+
+// So sc can run setup for a repository whose app isn't installed, with only the install to do.
+test("a sign-in that still works isn't asked for again, and setup goes straight to the app", async () => {
+  removeSettings(dir);
+  dir = signedIn();
+  const { code, out, err } = await run(fake.url, dir, ["setup.ts"], "", { SKELCREW_REMOTE: app });
+  expect(err).toBe("");
+  expect(code).toBe(0);
+  expect(out).toBe(
+    [
+      "Skelcrew's GitHub App needs to be installed on simon/app. Open this link:",
+      `${install}/permissions?suggested_target_id=1234&repository_ids[]=5678`,
+      "Skelcrew's GitHub App is on simon/app.",
+      "",
+    ].join("\n"),
+  );
+  expect(asked("/web/login/device/code")).toEqual([]);
+});
+
+test("a sign-in GitHub refuses, or one with another service, is asked for again", async () => {
+  removeSettings(dir);
+  dir = signedIn({ access: "revoked" });
+  const refused = await run(fake.url, dir, ["setup.ts"], "", { SKELCREW_REMOTE: app });
+  expect(refused.code).toBe(0);
+  expect(refused.out).toContain("Signed in to GitHub as simon.");
+  removeSettings(dir);
+  dir = signedIn();
+  writeFileSync(join(dir, "service"), `${fake.url}/service\n`);
+  const moved = await run(fake.url, dir, ["setup.ts"], "", { SKELCREW_REMOTE: app });
+  expect(moved.code).toBe(0);
+  expect(moved.out).toContain("Signed in to GitHub as simon.");
+});
+
+// A GitHub that is down or limiting requests says nothing about the sign-in, so asking you to
+// sign in again would only hide what went wrong.
+test("when GitHub can't answer, setup says so instead of asking you to sign in again", async () => {
+  removeSettings(dir);
+  dir = signedIn();
+  fake.route = (
+    (before) => (a: Asked) =>
+      a.path === "/api/user" ? json({ message: "Service Unavailable" }, 503) : before(a)
+  )(fake.route);
+  const { code, err } = await run(fake.url, dir, ["setup.ts"], "", { SKELCREW_REMOTE: app });
+  expect(code).toBe(1);
+  expect(err).toContain("503");
+  expect(asked("/web/login/device/code")).toEqual([]);
 });

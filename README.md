@@ -17,7 +17,8 @@ sc plugin install skelcrew/skel-plugin-github
 It needs nothing else installed: it is written for Bun, which Skelcrew brings, and has no
 dependencies. It reaches GitHub through its REST and GraphQL APIs.
 
-Its setup takes two steps, and asks you to paste nothing:
+Its setup takes two steps, and asks you to paste nothing. Each is skipped when it is done
+already, so a sign-in that still works isn't asked for again:
 
 1. It signs you in with GitHub's device flow: it shows a code, and Enter opens GitHub's page,
    where you enter it and click Authorize. That tells Skelcrew who you are, so it can say whether
@@ -41,8 +42,8 @@ Then, in a checkout, `sc init` names GitHub as the repository's tracker.
   it for a token for each repository, which works only there, for an hour, and for your sign-in
   to be renewed when GitHub expires it. Code and issues never pass through the service: the
   plugin and git talk to GitHub directly.
-- **Skelcrew's GitHub App** installed on each repository Skelcrew works on. For a repository it
-  isn't installed on, Skelcrew says so, with the link that installs it.
+- **Skelcrew's GitHub App** installed on each repository Skelcrew works on. Where it isn't,
+  `sc` in a checkout of the repository runs the setup, which goes straight to installing it.
 
 Its settings and tokens are in the folder Skelcrew gives it, in
 `~/.config/skelcrew/plugins/github/`, readable only by you: `settings.json` holds the service's
@@ -53,9 +54,10 @@ for a few minutes. Agents never see them.
 
 Skelcrew runs `bun call.ts` with one JSON question on stdin, and reads one JSON answer from
 stdout. A failure exits non-zero, with its reason as the last line of stderr. It exits 2
-when only signing in again fixes it: there is no sign-in yet, its refresh token ran out, or
-the service refused to renew it. Skelcrew then names `sc plugin setup github`, which signs
-you in again. Every other failure exits 1. The git credential helper exits the same way.
+when only the setup fixes it: there is no sign-in yet, its refresh token ran out, the service
+refused to renew it, or the app isn't installed on the repository. From your terminal,
+Skelcrew then runs the setup, and elsewhere names `sc plugin setup github`. Every other
+failure exits 1. The git credential helper exits the same way.
 Each question names its kind in `ask`. A repository is named `owner/name`, its key from `claims`.
 
 | `ask` | Also given | Answer |

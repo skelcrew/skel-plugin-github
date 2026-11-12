@@ -69,18 +69,19 @@ export type Settings = {
   refreshExpires: number;
 };
 
-// What you run to sign in again, which every SignInNeeded names.
+// What you run to sign in again, which a SetupNeeded for your sign-in names.
 const signInAgain = "run sc plugin setup github to sign in again";
 
-// A failure only you can fix, by signing in again through the plugin's setup. call.ts and
-// credentials.ts exit with code 2 for it, which Skelcrew reads as "this plugin needs its setup
-// again", so the error you see names the command.
-export class SignInNeeded extends Error {}
+// A failure only the plugin's setup fixes: signing in again, or installing the app on the
+// repository. call.ts and credentials.ts exit with code 2 for it, which Skelcrew reads as "this
+// plugin needs its setup again". From your terminal Skelcrew then runs the setup, and elsewhere
+// its error names the command.
+export class SetupNeeded extends Error {}
 
 // Returns your saved sign-in, or throws saying how to sign in when there is none.
 export function settings(): Settings {
   const saved = readJson("settings.json");
-  if (saved === null) throw new SignInNeeded(`GitHub isn't set up: ${signInAgain}`);
+  if (saved === null) throw new SetupNeeded(`GitHub isn't set up: ${signInAgain}`);
   const s = record(saved, "the plugin's settings.json");
   return {
     service: text(s.service, "the service's address"),
@@ -142,7 +143,7 @@ async function userToken(stale = false): Promise<Settings> {
     const now = settings();
     if (now.access !== before.access && now.accessExpires - Date.now() > margin) return now;
     if (now.refreshExpires < Date.now())
-      throw new SignInNeeded(`your GitHub sign-in ran out: ${signInAgain}`);
+      throw new SetupNeeded(`your GitHub sign-in ran out: ${signInAgain}`);
     const response = await fetch(`${now.service}/github/renew`, {
       method: "POST",
       headers: { ...headers, "content-type": "application/json" },
@@ -151,7 +152,7 @@ async function userToken(stale = false): Promise<Settings> {
     // A 401 is the service saying the refresh token is no good, so only a new sign-in helps.
     // Any other failure, such as the service being down, may pass on its own.
     if (response.status === 401)
-      throw new SignInNeeded(
+      throw new SetupNeeded(
         `couldn't renew your GitHub sign-in: ${await said(response)}: ${signInAgain}`,
       );
     if (!response.ok)
@@ -175,8 +176,9 @@ async function said(response: Response): Promise<string> {
 
 // Asks skel's service something with your sign-in, and returns its answer, or null when it
 // answers with nothing. A sign-in GitHub stopped accepting before its time is renewed and the
-// question asked once more. Throws the service's own words when it refuses.
-export async function askService(path: string, body: object): Promise<unknown> {
+// question asked once more. Throws the service's own words when it refuses, or `missing` as
+// a SetupNeeded for a 404, where the service's 404 means only the setup can fix it.
+export async function askService(path: string, body: object, missing?: string): Promise<unknown> {
   let sign = await userToken();
   for (let tries = 0; ; tries++) {
     const response = await fetch(`${sign.service}${path}`, {
@@ -192,13 +194,16 @@ export async function askService(path: string, body: object): Promise<unknown> {
       sign = await userToken(true);
       continue;
     }
+    if (response.status === 404 && missing) throw new SetupNeeded(missing);
     if (!response.ok) throw new Error(await said(response));
     return response.status === 204 ? null : response.json();
   }
 }
 
 // Returns a token from skel's app for the repository, reused while it has more than a few
-// minutes left. The service makes it for that repository alone, for an hour.
+// minutes left. The service makes it for that repository alone, for an hour. Its 404 is taken
+// as the app not being installed there, which the setup fixes. The service answers 404 for a
+// repository you can't reach too, but claims asks GitHub about that first, with its own error.
 export async function repositoryToken(repository: string): Promise<string> {
   const saved = readJson("tokens.json");
   const tokens = saved === null ? {} : record(saved, "the plugin's tokens.json");
@@ -211,7 +216,11 @@ export async function repositoryToken(repository: string): Promise<string> {
     )
       return token;
   }
-  const made = record(await askService("/github/token", { repository }), "the service's token");
+  const missing = `Skelcrew's GitHub App isn't installed on ${repository}`;
+  const made = record(
+    await askService("/github/token", { repository }, missing),
+    "the service's token",
+  );
   const token = text(made.token, "the service's token");
   // Read again, as another call may have saved a token for another repository meanwhile.
   const now = readJson("tokens.json");

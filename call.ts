@@ -1,7 +1,7 @@
 // The plugin's call command: skel asks one question as JSON on stdin, and the plugin answers it
 // as JSON on stdout, acting on GitHub as skel's GitHub App. A failure exits non-zero with its
-// reason as the last line of stderr, which skel shows: code 2 when only signing in again
-// fixes it, and 1 for anything else.
+// reason as the last line of stderr, which skel shows: code 2 when only the setup fixes it, by
+// signing in again or installing the app on the repository, and 1 for anything else.
 import { changed, type Item } from "./changed.ts";
 import {
   askService,
@@ -12,7 +12,7 @@ import {
   record,
   repositoryToken,
   rest,
-  SignInNeeded,
+  SetupNeeded,
   settings,
   text,
 } from "./github.ts";
@@ -52,8 +52,8 @@ async function appBot(): Promise<{ name: string; email: string }> {
 
 // Answers `claims`: the repository's key, short name, link and clone URL, whether you can
 // push to it, whether it is a fork, and who commits as the app, or null for a remote that
-// isn't on GitHub. Asking the service for a token checks that the app is installed there, and
-// its refusal names the page that installs it.
+// isn't on GitHub. Asking the service for a token checks that the app is installed there. Where
+// it isn't, claims exits 2, so from your terminal Skelcrew runs the setup, which installs it.
 async function claims(remote: string) {
   const found = githubRemote(remote);
   if (!found) return null;
@@ -245,5 +245,5 @@ try {
   console.log(JSON.stringify(await answer(question)));
 } catch (error) {
   console.error(error instanceof Error ? error.message : String(error));
-  process.exit(error instanceof SignInNeeded ? 2 : 1);
+  process.exit(error instanceof SetupNeeded ? 2 : 1);
 }
