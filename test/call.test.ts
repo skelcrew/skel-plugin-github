@@ -476,9 +476,11 @@ test("open pr answers the PR already open from the branch, or opens one", async 
 });
 
 // A branch GitHub already deleted, such as with "delete branch on merge" or by hand, answers
-// 422, and the question still succeeds, as the branch is gone either way.
+// 422, and the question still succeeds, as the branch is gone either way. GitHub answers 422
+// too when it refuses to delete one, such as a protected branch, which must fail.
 test("close pr comments, closes the PR and deletes its branch, and with no comment only closes", async () => {
   let gone = false;
+  let refused = false;
   fake.route = (asked) => {
     const { method, path } = asked;
     if (method === "POST" && path === "/api/repos/simon/app/issues/26/comments")
@@ -486,9 +488,13 @@ test("close pr comments, closes the PR and deletes its branch, and with no comme
     if (method === "PATCH" && path === "/api/repos/simon/app/pulls/26")
       return json({ number: 26, state: "closed" });
     if (method === "DELETE" && path === "/api/repos/simon/app/git/refs/heads/skelcrew/12-fix-login")
-      return gone
-        ? json({ message: "Reference does not exist" }, 422)
-        : new Response(null, { status: 204 });
+      return refused
+        ? json({ message: "Cannot delete this protected branch" }, 422)
+        : gone
+          ? json({ message: "Reference does not exist" }, 422)
+          : new Response(null, { status: 204 });
+    if (method === "GET" && path === "/api/repos/simon/app/git/ref/heads/skelcrew/12-fix-login")
+      return gone ? json({ message: "Not Found" }, 404) : json({ ref: "refs/heads/x" });
     return world(asked);
   };
   const question = {
@@ -515,6 +521,10 @@ test("close pr comments, closes the PR and deletes its branch, and with no comme
   expect(await ask({ ...question, comment: null })).toBeNull();
   expect(sent("/api/repos/simon/app/issues/26/comments")).toEqual([]);
   expect(sent("/api/repos/simon/app/pulls/26")).toEqual([{ state: "closed" }]);
+
+  gone = false;
+  refused = true;
+  await expect(ask(question)).rejects.toThrow("Cannot delete this protected branch");
 
   await expect(ask({ ...question, branch: "../../hooks" })).rejects.toThrow("isn't a branch");
 });

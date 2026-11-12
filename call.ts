@@ -132,7 +132,7 @@ async function openPr(
 
 // Answers `close pr`: posts the comment when there is one, so the PR says why it closed, then
 // closes the PR and deletes its branch, as skel's sc rm removes the thread behind it. A branch
-// already gone, such as one GitHub deleted itself, answers 422 and counts as deleted.
+// already gone, such as one GitHub deleted itself, counts as deleted.
 async function closePr(
   repository: string,
   pr: number,
@@ -146,8 +146,30 @@ async function closePr(
   await rest(repository, `close #${pr}`, "PATCH", `/pulls/${pr}`, { state: "closed" });
   // Each part of the branch's name is encoded on its own, as its slashes are part of the path.
   const ref = branch.split("/").map(encodeURIComponent).join("/");
-  await rest(repository, `delete ${branch}`, "DELETE", `/git/refs/heads/${ref}`, undefined, [422]);
-  return null;
+  const deleted = await rest(
+    repository,
+    `delete ${branch}`,
+    "DELETE",
+    `/git/refs/heads/${ref}`,
+    undefined,
+    [422],
+  );
+  if (deleted.status !== 422) return null;
+  // GitHub answers 422 both for a branch already gone and for one it refuses to delete, such as
+  // a protected branch. Only asking for the branch tells them apart.
+  const still = await rest(
+    repository,
+    `look for ${branch}`,
+    "GET",
+    `/git/ref/heads/${ref}`,
+    undefined,
+    [404],
+  );
+  if (still.status === 404) return null;
+  const said = record(deleted.body ?? {}, "GitHub's answer").message;
+  throw new Error(
+    `couldn't delete ${branch}: GitHub said ${typeof said === "string" ? said : "422"}`,
+  );
 }
 
 // Answers `review`: posts the reviewer's verdict on the PR as a review that only comments,
