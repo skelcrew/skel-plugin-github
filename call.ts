@@ -7,6 +7,7 @@ import {
   askService,
   asYou,
   githubRemote,
+  graphql,
   list,
   number,
   record,
@@ -149,6 +150,29 @@ async function review(
   return { id: String(number(record(posted.body, "the review").id, "the review's ID")) };
 }
 
+// Answers `seen`: reacts with 👀 to a person's comment or review on the PR, once skel has typed
+// it into the builder, so they can see on GitHub that it was picked up. GitHub's REST API has
+// no reactions on a review, so a review is found by its ID for its node ID, which GitHub's
+// GraphQL API reacts to.
+async function seen(repository: string, pr: number, kind: string, id: number): Promise<null> {
+  if (kind === "comment") {
+    await rest(repository, `react to comment ${id}`, "POST", `/issues/comments/${id}/reactions`, {
+      content: "eyes",
+    });
+    return null;
+  }
+  const found = await rest(repository, `find review ${id}`, "GET", `/pulls/${pr}/reviews/${id}`);
+  // The node ID goes into the query as it is, so it may hold nothing that ends a string.
+  const node = text(record(found.body, "the review").node_id, "the review's node ID");
+  if (!/^[\w=-]+$/.test(node)) throw new Error(`${node} isn't a review's node ID`);
+  await graphql(
+    repository,
+    `react to review ${id}`,
+    `mutation { addReaction(input: { subjectId: "${node}", content: EYES }) { clientMutationId } }`,
+  );
+  return null;
+}
+
 // Answers `log`: the end of a failed check's log, kept short, as skel types it into the
 // builder, which can run the tests itself for more. A check from GitHub Actions has a job's
 // log, with a time in front of each line, which goes. Any other check has only its summary.
@@ -199,6 +223,17 @@ async function answer(question: Record<string, unknown>): Promise<unknown> {
       content: "eyes",
     });
     return null;
+  }
+  if (ask === "seen") {
+    const kind = text(question.kind, "the kind");
+    if (kind !== "comment" && kind !== "review")
+      throw new Error(`${kind} isn't a comment or a review`);
+    return seen(
+      repository,
+      numberOf(question.pr, "a PR's number"),
+      kind,
+      numberOf(question.id, `a ${kind}'s ID`),
+    );
   }
   if (ask === "open pr")
     return openPr(repository, {

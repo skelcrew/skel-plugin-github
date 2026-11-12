@@ -109,6 +109,49 @@ test("a repository's token is asked for once and used until it nearly runs out",
   expect(JSON.parse(reactions[0]?.body ?? "")).toEqual({ content: "eyes" });
 });
 
+test("seen reacts with eyes to a PR comment as the app", async () => {
+  fake.route = (asked) =>
+    asked.path === "/api/repos/simon/app/issues/comments/77/reactions"
+      ? json({}, 201)
+      : world(asked);
+  expect(
+    await ask({ ask: "seen", repository: "simon/app", pr: 26, kind: "comment", id: "77" }),
+  ).toBeNull();
+  const reaction = fake.asked.find((a) => a.path.endsWith("/reactions"));
+  expect(reaction?.method).toBe("POST");
+  expect(reaction?.auth).toBe("Bearer ghs_app");
+  expect(JSON.parse(reaction?.body ?? "")).toEqual({ content: "eyes" });
+});
+
+// GitHub's REST API has no reactions on a review, so its GraphQL API reacts, by the review's
+// node ID.
+test("seen reacts with eyes to a review as the app, through GraphQL", async () => {
+  fake.route = (asked) => {
+    if (asked.path === "/api/repos/simon/app/pulls/26/reviews/601")
+      return json({ id: 601, node_id: "PRR_kwDOabc123" });
+    if (asked.path === "/api/graphql")
+      return json({ data: { addReaction: { reaction: { content: "EYES" } } } });
+    return world(asked);
+  };
+  expect(
+    await ask({ ask: "seen", repository: "simon/app", pr: 26, kind: "review", id: "601" }),
+  ).toBeNull();
+  const graphql = fake.asked.find((a) => a.path === "/api/graphql");
+  expect(graphql?.auth).toBe("Bearer ghs_app");
+  const { query } = JSON.parse(graphql?.body ?? "");
+  expect(query).toContain('addReaction(input: { subjectId: "PRR_kwDOabc123", content: EYES })');
+});
+
+test("seen refuses an ID or kind it can't send to GitHub", async () => {
+  await expect(
+    ask({ ask: "seen", repository: "simon/app", pr: 26, kind: "comment", id: "../1" }),
+  ).rejects.toThrow("isn't a comment's ID");
+  await expect(
+    ask({ ask: "seen", repository: "simon/app", pr: 26, kind: "issue", id: "1" }),
+  ).rejects.toThrow("issue isn't a comment or a review");
+  expect(fake.asked.filter((a) => a.path.startsWith("/api/"))).toEqual([]);
+});
+
 test("a sign-in about to run out is renewed through the service once, by calls at once", async () => {
   removeSettings(dir);
   dir = signedIn({ access: "old-token", accessExpires: Date.now() + 60_000 });
