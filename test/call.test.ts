@@ -475,6 +475,50 @@ test("open pr answers the PR already open from the branch, or opens one", async 
   expect(sent("/api/repos/simon/app/pulls")).toEqual([]);
 });
 
+// A branch GitHub already deleted, such as with "delete branch on merge" or by hand, answers
+// 422, and the question still succeeds, as the branch is gone either way.
+test("close pr comments, closes the PR and deletes its branch, and with no comment only closes", async () => {
+  let gone = false;
+  fake.route = (asked) => {
+    const { method, path } = asked;
+    if (method === "POST" && path === "/api/repos/simon/app/issues/26/comments")
+      return json({ id: 5 }, 201);
+    if (method === "PATCH" && path === "/api/repos/simon/app/pulls/26")
+      return json({ number: 26, state: "closed" });
+    if (method === "DELETE" && path === "/api/repos/simon/app/git/refs/heads/skelcrew/12-fix-login")
+      return gone
+        ? json({ message: "Reference does not exist" }, 422)
+        : new Response(null, { status: 204 });
+    return world(asked);
+  };
+  const question = {
+    ask: "close pr",
+    repository: "simon/app",
+    pr: 26,
+    branch: "skelcrew/12-fix-login",
+    comment: "Closed by Skelcrew: started over as app-14",
+  };
+  expect(await ask(question)).toBeNull();
+  const github = fake.asked.filter((a) => a.path.startsWith("/api/repos/simon/app/"));
+  expect(github.map((a) => `${a.method} ${a.path}`)).toEqual([
+    "POST /api/repos/simon/app/issues/26/comments",
+    "PATCH /api/repos/simon/app/pulls/26",
+    "DELETE /api/repos/simon/app/git/refs/heads/skelcrew/12-fix-login",
+  ]);
+  expect(sent("/api/repos/simon/app/issues/26/comments")).toEqual([
+    { body: "Closed by Skelcrew: started over as app-14" },
+  ]);
+  expect(sent("/api/repos/simon/app/pulls/26")).toEqual([{ state: "closed" }]);
+
+  gone = true;
+  fake.asked = [];
+  expect(await ask({ ...question, comment: null })).toBeNull();
+  expect(sent("/api/repos/simon/app/issues/26/comments")).toEqual([]);
+  expect(sent("/api/repos/simon/app/pulls/26")).toEqual([{ state: "closed" }]);
+
+  await expect(ask({ ...question, branch: "../../hooks" })).rejects.toThrow("isn't a branch");
+});
+
 test("review posts a review that only comments, with the verdict first", async () => {
   fake.route = (asked) =>
     asked.path === "/api/repos/simon/app/pulls/26/reviews" ? json({ id: 777 }) : world(asked);
