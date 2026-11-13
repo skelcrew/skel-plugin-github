@@ -129,6 +129,73 @@ test("took answers whether this call added the app's eyes to the issue", async (
   ]);
 });
 
+// A GitHub where issue 12 has the assignees in `assignees`, which POST and DELETE on its
+// assignees change, as GitHub does. `assignable` says whom GitHub lets be assigned: it leaves
+// out anyone else without an error.
+function assigning(assignees: string[], assignable = ["simon", "ana"]) {
+  return (asked: Asked): Response | undefined => {
+    if (asked.path === "/api/repos/simon/app/issues/12") {
+      if (asked.method !== "GET") return undefined;
+      return json({ number: 12, assignees: assignees.map((login) => ({ login })) });
+    }
+    if (asked.path !== "/api/repos/simon/app/issues/12/assignees") return world(asked);
+    const given: string[] = JSON.parse(asked.body).assignees;
+    if (asked.method === "POST")
+      for (const login of given)
+        if (assignable.includes(login) && !assignees.includes(login)) assignees.push(login);
+    if (asked.method === "DELETE") {
+      const kept = assignees.filter((login) => !given.includes(login));
+      assignees.splice(0, assignees.length, ...kept);
+    }
+    return json({ number: 12, assignees: assignees.map((login) => ({ login })) }, 201);
+  };
+}
+
+test("assign on adds you to the issue as the app, and says whether this call did", async () => {
+  const assignees = ["ana"];
+  fake.route = assigning(assignees);
+  expect(await ask({ ask: "assign", repository: "simon/app", task: "12", on: true })).toEqual({
+    assigned: true,
+  });
+  expect(assignees).toEqual(["ana", "simon"]);
+  expect(await ask({ ask: "assign", repository: "simon/app", task: "12", on: true })).toEqual({
+    assigned: false,
+  });
+  expect(sent("/api/repos/simon/app/issues/12/assignees")).toEqual([{ assignees: ["simon"] }]);
+  const writes = fake.asked.filter((a) => a.path.endsWith("/assignees"));
+  expect(writes.map((a) => a.auth)).toEqual(["Bearer ghs_app"]);
+});
+
+test("assign off takes only you off the issue, as the app", async () => {
+  const assignees = ["ana", "simon"];
+  fake.route = assigning(assignees);
+  expect(await ask({ ask: "assign", repository: "simon/app", task: "12", on: false })).toBeNull();
+  expect(assignees).toEqual(["ana"]);
+  const removed = fake.asked.find((a) => a.path.endsWith("/assignees"));
+  expect(removed?.method).toBe("DELETE");
+  expect(removed?.auth).toBe("Bearer ghs_app");
+  expect(JSON.parse(removed?.body ?? "")).toEqual({ assignees: ["simon"] });
+});
+
+// GitHub answers success when it won't assign someone, such as a person who can't reach the
+// repository, and only its list of assignees shows it.
+test("assign on fails when GitHub leaves you off the issue", async () => {
+  fake.route = assigning([], ["ana"]);
+  await expect(
+    ask({ ask: "assign", repository: "simon/app", task: "12", on: true }),
+  ).rejects.toThrow("GitHub didn't assign simon to #12");
+});
+
+test("assign refuses an issue or an on it can't send to GitHub", async () => {
+  await expect(
+    ask({ ask: "assign", repository: "simon/app", task: "../1", on: true }),
+  ).rejects.toThrow("isn't an issue's number");
+  await expect(
+    ask({ ask: "assign", repository: "simon/app", task: "12", on: "yes" }),
+  ).rejects.toThrow("whether to assign you isn't what the GitHub plugin expects");
+  expect(fake.asked.filter((a) => a.path.startsWith("/api/"))).toEqual([]);
+});
+
 test("seen reacts with eyes to a PR comment as the app", async () => {
   fake.route = (asked) =>
     asked.path === "/api/repos/simon/app/issues/comments/77/reactions"
