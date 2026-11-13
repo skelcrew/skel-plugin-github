@@ -261,10 +261,19 @@ async function answer(question: Record<string, unknown>): Promise<unknown> {
     );
   if (ask === "took") {
     const task = numberOf(question.task, "an issue's number");
-    await rest(repository, `react to #${task}`, "POST", `/issues/${task}/reactions`, {
-      content: "eyes",
-    });
-    return null;
+    // GitHub answers 201 when it adds the app's 👀 and 200 when the app's was there already.
+    // Every machine reacts as the same bot, so a 200 means another one, or this one earlier,
+    // took the issue, and Skelcrew here leaves it be.
+    const reacted = await rest(
+      repository,
+      `react to #${task}`,
+      "POST",
+      `/issues/${task}/reactions`,
+      {
+        content: "eyes",
+      },
+    );
+    return { took: reacted.status === 201 };
   }
   if (ask === "seen") {
     const kind = text(question.kind, "the kind");

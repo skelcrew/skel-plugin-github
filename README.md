@@ -65,7 +65,7 @@ Each question names its kind in `ask`. A repository is named `owner/name`, its k
 | `claims` | `remote`, or a repository's full name, such as `simon/app` | `{ key, name, link, clone, push, fork, author }`, or `null` for a remote not on GitHub. `author` is the app's bot, `{ name, email }`, which skel makes the author of a thread's commits, with you as co-author |
 | `changed` | `repository`, `jobs` (`tracker`, `forge`), `next` or null, `prs` (numbers) | `{ items, next }` |
 | `create task` | `repository`, `title`, `body` | The new task, as an item |
-| `took` | `repository`, `task` | `null`, after reacting with 👀 |
+| `took` | `repository`, `task` | `{ took }`, after reacting with 👀: `true` if this call added the reaction, `false` if the app's was there already, as when Skelcrew on another machine took the issue first |
 | `open pr` | `repository`, `branch`, `base`, `title`, `body` | `{ number }`, of the PR already open from the branch if there is one |
 | `close pr` | `repository`, `pr`, `branch`, `comment` or null | `null`, after posting the comment if there is one, closing the PR and deleting the branch |
 | `review` | `repository`, `pr`, `commit`, `verdict` (`approve` or `changes`), `body` | `{ id }` |

@@ -109,6 +109,26 @@ test("a repository's token is asked for once and used until it nearly runs out",
   expect(JSON.parse(reactions[0]?.body ?? "")).toEqual({ content: "eyes" });
 });
 
+// GitHub answers 201 for a reaction it adds and 200 for one the app had there already, as when
+// Skelcrew on another machine, posting as the same bot, claimed the issue first.
+test("took answers whether this call added the app's eyes to the issue", async () => {
+  let reacted = false;
+  fake.route = (asked) => {
+    if (asked.path !== "/api/repos/simon/app/issues/12/reactions") return world(asked);
+    const status = reacted ? 200 : 201;
+    reacted = true;
+    return json({ content: "eyes" }, status);
+  };
+  expect(await ask({ ask: "took", repository: "simon/app", task: "12" })).toEqual({ took: true });
+  expect(await ask({ ask: "took", repository: "simon/app", task: "12" })).toEqual({
+    took: false,
+  });
+  expect(sent("/api/repos/simon/app/issues/12/reactions")).toEqual([
+    { content: "eyes" },
+    { content: "eyes" },
+  ]);
+});
+
 test("seen reacts with eyes to a PR comment as the app", async () => {
   fake.route = (asked) =>
     asked.path === "/api/repos/simon/app/issues/comments/77/reactions"
