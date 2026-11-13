@@ -66,6 +66,7 @@ Each question names its kind in `ask`. A repository is named `owner/name`, its k
 | `changed` | `repository`, `jobs` (`tracker`, `forge`), `next` or null, `prs` (numbers) | `{ items, next }` |
 | `create task` | `repository`, `title`, `body` | The new task, as an item |
 | `took` | `repository`, `task` | `{ took }`, after reacting with 👀: `true` if this call added the reaction, `false` if the app's was there already, as when Skelcrew on another machine took the issue first |
+| `assign` | `repository`, `task`, `on` (`true` or `false`) | With `on`, `{ assigned }`: `true` if this call made you an assignee of the issue, `false` if you were one already. GitHub leaves out someone it won't assign without an error, so that fails. Without it, `null`, after taking you off. You are the GitHub login the setup signed in as, and the app makes the change. Other assignees stay |
 | `open pr` | `repository`, `branch`, `base`, `title`, `body` | `{ number }`, of the PR already open from the branch if there is one |
 | `close pr` | `repository`, `pr`, `branch`, `comment` or null | `null`, after posting the comment if there is one, closing the PR and deleting the branch |
 | `review` | `repository`, `pr`, `commit`, `verdict` (`approve` or `changes`), `body` | `{ id }` |

@@ -215,6 +215,33 @@ async function seen(repository: string, pr: number, kind: string, id: number): P
   return null;
 }
 
+// Answers `assign`: adds you to the issue as an assignee, or with `on` false takes you off,
+// leaving other assignees be. You are the person the setup signed in as. The app makes the
+// change, as Skelcrew acts on GitHub only as its app. Adding answers whether this call added
+// you, so Skelcrew takes you off later only if it put you on.
+async function assign(repository: string, task: number, on: boolean) {
+  const { login } = settings();
+  if (!on) {
+    await rest(repository, `take ${login} off #${task}`, "DELETE", `/issues/${task}/assignees`, {
+      assignees: [login],
+    });
+    return null;
+  }
+  const assigned = (issue: unknown) =>
+    list(record(issue, "the issue").assignees ?? [], "the issue's assignees").some(
+      (each) => record(each, "an assignee").login === login,
+    );
+  const before = await rest(repository, `read #${task}`, "GET", `/issues/${task}`);
+  if (assigned(before.body)) return { assigned: false };
+  const after = await rest(repository, `assign #${task}`, "POST", `/issues/${task}/assignees`, {
+    assignees: [login],
+  });
+  // GitHub quietly leaves out someone it won't assign, such as a person who can't reach the
+  // repository, so only the issue it answers with says whether it worked.
+  if (!assigned(after.body)) throw new Error(`GitHub didn't assign ${login} to #${task}`);
+  return { assigned: true };
+}
+
 // Answers `log`: the end of a failed check's log, kept short, as skel types it into the
 // builder, which can run the tests itself for more. A check from GitHub Actions has a job's
 // log, with a time in front of each line, which goes. Any other check has only its summary.
@@ -274,6 +301,11 @@ async function answer(question: Record<string, unknown>): Promise<unknown> {
       },
     );
     return { took: reacted.status === 201 };
+  }
+  if (ask === "assign") {
+    if (typeof question.on !== "boolean")
+      throw new Error("whether to assign you isn't what the GitHub plugin expects");
+    return assign(repository, numberOf(question.task, "an issue's number"), question.on);
   }
   if (ask === "seen") {
     const kind = text(question.kind, "the kind");
